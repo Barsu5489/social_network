@@ -1,0 +1,2 @@
+-- Down
+DROP TABLE posts;
