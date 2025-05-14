@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"social-nework/pkg/auth"
 
 	"social-nework/pkg/db/sqlite"
+	"social-nework/pkg/handlers"
 )
 
 func main() {
@@ -15,6 +17,12 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize the user model with database connection
+	userModel := &auth.UserModel{DB: db} 
+    authHandler := &handlers.AuthHandler{    
+        UserModel: userModel,
+    }
+	http.HandleFunc("/api/register", authHandler.Register)
 	// Set up a basic HTTP server
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
