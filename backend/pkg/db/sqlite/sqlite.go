@@ -1,4 +1,4 @@
-package main
+package sqlite
 
 import (
 	"database/sql"
@@ -10,8 +10,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-func main() {
-	db, err := sql.Open("sqlite3", "pkg/db/sqlite/social_network.db")
+
+func NewDB(dataSourceName string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", "pkg/db/sqlite/" + dataSourceName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,4 +37,5 @@ func main() {
 	}
 
 	log.Println("Migration applied successfully")
+	return db, nil
 }
