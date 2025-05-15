@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	
 )
 
 // RequireAuth middleware checks if a user is authenticated
@@ -25,6 +25,7 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// Add user ID to request context
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "user_id", userID)
+		fmt.Println((ctx))
 
 		// Call the next handler with the updated context
 		next(w, r.WithContext(ctx))
