@@ -18,11 +18,10 @@ func main() {
 	defer db.Close()
 
 	// Initialize the user model with database connection
-	userModel := &auth.UserModel{DB: db} 
-    authHandler := &handlers.AuthHandler{    
-        UserModel: userModel,
-    }
+	userModel := &auth.UserModel{DB: db}
+authHandler := &handlers.AuthHandler{UserModel: userModel}
 	http.HandleFunc("/api/register", authHandler.Register)
+	http.HandleFunc("/api/login", authHandler.Login)
 	// Set up a basic HTTP server
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
