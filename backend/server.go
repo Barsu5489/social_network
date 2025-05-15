@@ -22,6 +22,7 @@ func main() {
 authHandler := &handlers.AuthHandler{UserModel: userModel}
 	http.HandleFunc("/api/register", authHandler.Register)
 	http.HandleFunc("/api/login", authHandler.Login)
+	http.HandleFunc("/api/logout", authHandler.Logout)
 	// Set up a basic HTTP server
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
