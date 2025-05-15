@@ -15,3 +15,12 @@ type User struct {
 	UpdatedAt    int64  `json:"updated_at"`     
 	DeletedAt    *int64 `json:"deleted_at"`     
 }
+
+type Follow struct {
+	ID         string `json:"id"`
+	FollowerID string `json:"follower_id"`
+	FollowedID string `json:"followed_id"`
+	Status     string `json:"status"` 
+	CreatedAt  int64  `json:"created_at"` 
+	DeletedAt  *int64 `json:"deleted_at,omitempty"` 
+}
