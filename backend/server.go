@@ -4,7 +4,12 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
+	"social-nework/pkg/auth"
 	"social-nework/pkg/db/sqlite"
+	"social-nework/pkg/handlers"
+	"social-nework/pkg/models"
 )
 
 func main() {
@@ -15,15 +20,43 @@ func main() {
 	}
 	defer db.Close()
 
-	// Set up a basic HTTP server
-	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+	// Models
+	userModel := &auth.UserModel{DB: db}
+	followModel := &models.FollowModel{DB: db}
+
+	// Handlers
+	authHandler := &handlers.AuthHandler{UserModel: userModel}
+	followHandler := &handlers.FollowHandler{FollowModel: followModel}
+
+	//  Initialize router
+	router := mux.NewRouter()
+
+
+
+	// follow routes with middleware RequireAuth
+	router.HandleFunc("/follow/{userID}", auth.RequireAuth(followHandler.Follow)).Methods("POST")
+	router.HandleFunc("/unfollow/{userID}", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
+	router.HandleFunc("/followers", auth.RequireAuth(followHandler.GetFollowers)).Methods("GET")
+	router.HandleFunc("/following", auth.RequireAuth(followHandler.GetFollowing)).Methods("GET")
+	
+	// Public routes without middleware
+	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
+	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	
+	// Start server
+	http.ListenAndServe(":3000", router)
+	
+	router.HandleFunc("/api/logout", authHandler.Logout)
+
+	// Test route
+	router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Server is running"))
 	})
 
-	// Start the server
-	log.Println("Server starting on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// Start server with router
+	log.Println("Server starting on :3000...")
+	if err := http.ListenAndServe(":3000", router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
