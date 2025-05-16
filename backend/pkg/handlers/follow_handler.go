@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -97,15 +98,18 @@ func (h *FollowHandler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, ok := r.Context().Value("user_id").(string)
+	fmt.Println(userID)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	fmt.Println(ctx)
 	defer cancel()
 
 	followers, err := h.FollowModel.GetFollowers(ctx, userID)
+	fmt.Println(followers)
 	if err != nil {
 		log.Printf("Failed to get followers: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -132,6 +136,7 @@ func (h *FollowHandler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	following, err := h.FollowModel.GetFollowing(ctx, userID)
+	fmt.Println(following)
 	if err != nil {
 		log.Printf("Failed to get following: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

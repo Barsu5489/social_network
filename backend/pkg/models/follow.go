@@ -75,6 +75,7 @@ func (m *FollowModel) GetFollowers(ctx context.Context, userID string) ([]User, 
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	var followers []User
@@ -97,7 +98,9 @@ func (m *FollowModel) GetFollowers(ctx context.Context, userID string) ([]User, 
 		}
 		followers = append(followers, user)
 	}
-
+	if followers == nil {
+		followers = []User{}
+	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -138,6 +141,10 @@ func (m *FollowModel) GetFollowing(ctx context.Context, userID string) ([]User, 
 			return nil, err
 		}
 		following = append(following, user)
+	}
+	// Initialize empty slice if no rows returned
+	if following == nil {
+		following = []User{}
 	}
 
 	if err := rows.Err(); err != nil {
