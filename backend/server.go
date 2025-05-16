@@ -23,29 +23,32 @@ func main() {
 	// Models
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
+	postModel := &models.PostModel{DB: db}
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
 	followHandler := &handlers.FollowHandler{FollowModel: followModel}
+	postHandler := &handlers.PostHandler{Post: postModel}
+
 
 	//  Initialize router
 	router := mux.NewRouter()
-
-
 
 	// follow routes with middleware RequireAuth
 	router.HandleFunc("/follow/{userID}", auth.RequireAuth(followHandler.Follow)).Methods("POST")
 	router.HandleFunc("/unfollow/{userID}", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
 	router.HandleFunc("/followers", auth.RequireAuth(followHandler.GetFollowers)).Methods("GET")
 	router.HandleFunc("/following", auth.RequireAuth(followHandler.GetFollowing)).Methods("GET")
-	
+
 	// Public routes without middleware
 	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
-	
+
+	// post routes with middleware
+    router.HandleFunc("/post", auth.RequireAuth(postHandler.NewPost)).Methods("POST")
 	// Start server
 	http.ListenAndServe(":3000", router)
-	
+
 	router.HandleFunc("/api/logout", authHandler.Logout)
 
 	// Test route
