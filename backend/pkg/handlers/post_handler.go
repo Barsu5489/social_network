@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -34,10 +35,34 @@ func NewPost(db *sql.DB) http.HandlerFunc {
 	}
 	_, err := models.CreatePost(db, ctx, userID, req.Content, req.Privacy, req.GroupID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error creating Post", http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Post Created successfully"})
 }
+}
+
+func FollowingPosts(db *sql.DB) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
+		if r.Method != http.MethodGet{
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+		}
+		userID := r.Context().Value("user_id").(string)
+
+		posts, err := models.GetFollowingPosts(db, userID)
+
+		if err != nil{
+			fmt.Println(err)
+			http.Error(w, "Error getting Post", http.StatusMethodNotAllowed)
+		}
+		
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode posts as JSON
+	json.NewEncoder(w).Encode(posts)
+	}
 }
