@@ -69,7 +69,7 @@ func UpdateProfile(db *sql.DB) http.HandlerFunc{
 		})
 		return
 	}
-	if err := models.UpdateProfile(&sql.DB{}, userID, updates); err != nil {
+	if err := models.UpdateProfile(db, userID, updates); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
