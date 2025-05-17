@@ -22,15 +22,15 @@ WHERE id = ? AND deleted_at IS NULL
 	}
 
 	canViewFull := viewerID == targetID || !user.IsPrivate
-veiwStmt := `
+	veiwStmt := `
 SELECT COUNT(*)
 		FROM follows
 		WHERE follower_id = ? AND followed_id = ? AND status = 'accepted' AND deleted_at IS NULL
 `
 	if !canViewFull {
 		var isFollower int
-	result,	err := db.Query(veiwStmt,viewerID, targetID)
-	result.Scan(&isFollower)
+		result, err := db.Query(veiwStmt, viewerID, targetID)
+		result.Scan(&isFollower)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -40,5 +40,29 @@ SELECT COUNT(*)
 			return limitedUser, nil, nil, nil, nil
 		}
 	}
-	
+	   // Get posts
+	   var posts []Post
+	   if canViewFull {
+		
+		   rows, err := db.Query( `
+			   SELECT id, user_id, group_id, content, privacy, created_at
+			   FROM posts
+			   WHERE user_id = ? AND deleted_at IS NULL`, targetID)
+		   if err != nil {
+			   return nil, nil, nil, nil, err
+		   }
+		   defer rows.Close()
+		   for rows.Next() {
+			   post := Post{}
+			   var groupID sql.NullString
+			   if err := rows.Scan(&post.ID, &post.UserID, &groupID, &post.Content, &post.Privacy, &post.CreatedAt); err != nil {
+				   return nil, nil, nil, nil, err
+			   }
+			   if groupID.Valid {
+				   post.GroupID = &groupID.String
+			   }
+			   posts = append(posts, post)
+		   }
+	   }
+	   	
 }
