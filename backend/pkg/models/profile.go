@@ -40,29 +40,47 @@ SELECT COUNT(*)
 			return limitedUser, nil, nil, nil, nil
 		}
 	}
-	   // Get posts
-	   var posts []Post
-	   if canViewFull {
-		
-		   rows, err := db.Query( `
+	// Get posts
+	var posts []Post
+	if canViewFull {
+
+		rows, err := db.Query(`
 			   SELECT id, user_id, group_id, content, privacy, created_at
 			   FROM posts
 			   WHERE user_id = ? AND deleted_at IS NULL`, targetID)
-		   if err != nil {
-			   return nil, nil, nil, nil, err
-		   }
-		   defer rows.Close()
-		   for rows.Next() {
-			   post := Post{}
-			   var groupID sql.NullString
-			   if err := rows.Scan(&post.ID, &post.UserID, &groupID, &post.Content, &post.Privacy, &post.CreatedAt); err != nil {
-				   return nil, nil, nil, nil, err
-			   }
-			   if groupID.Valid {
-				   post.GroupID = &groupID.String
-			   }
-			   posts = append(posts, post)
-		   }
-	   }
-	   	
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			post := Post{}
+			var groupID sql.NullString
+			if err := rows.Scan(&post.ID, &post.UserID, &groupID, &post.Content, &post.Privacy, &post.CreatedAt); err != nil {
+				return nil, nil, nil, nil, err
+			}
+			if groupID.Valid {
+				post.GroupID = &groupID.String
+			}
+			posts = append(posts, post)
+		}
+	}
+	// Get followers
+	var followers []User
+	rows, err := db.Query(`
+        SELECT u.id, u.first_name, u.last_name, u.nickname
+        FROM users u
+        JOIN follows f ON u.id = f.follower_id
+        WHERE f.followed_id = ? AND f.status = 'accepted' AND u.deleted_at IS NULL AND f.deleted_at IS NULL`, targetID)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		user := User{}
+		if err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Nickname); err != nil {
+			return nil, nil, nil, nil, err
+		}
+		followers = append(followers, user)
+	}
+	
 }
