@@ -82,5 +82,27 @@ SELECT COUNT(*)
 		}
 		followers = append(followers, user)
 	}
-	
+
+    // Get following
+    var following []User
+    rows, err = db.Query( `
+        SELECT u.id, u.first_name, u.last_name, u.nickname
+        FROM users u
+        JOIN follows f ON u.id = f.followed_id
+        WHERE f.follower_id = ? AND f.status = 'accepted' AND u.deleted_at IS NULL AND f.deleted_at IS NULL`, targetID)
+    if err != nil {
+        return nil, nil, nil, nil, err
+    }
+    defer rows.Close()
+    for rows.Next() {
+        user := User{}
+        if err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Nickname); err != nil {
+            return nil, nil, nil, nil, err
+        }
+        following = append(following, user)
+    }
+
+    return user, posts, followers, following, nil
 }
+
+
