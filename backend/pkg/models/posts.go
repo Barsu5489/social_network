@@ -9,11 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type PostModel struct {
-	DB *sql.DB
-}
 
-func (m *PostModel) CreatePost(ctx context.Context, userID, content, privacy string, groupID *string) (string, error) {
+
+func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string) (string, error) {
 	if content == "" {
 		return "", errors.New("content cannot be empty")
 	}
@@ -26,7 +24,7 @@ func (m *PostModel) CreatePost(ctx context.Context, userID, content, privacy str
 	stm := `INSERT INTO posts (id, user_id, group_id, content, privacy, created_at, updated_at)
 	VALUES(?,?,?,?,?,?,?)
 	`
-	result, err := m.DB.ExecContext(ctx, stm, id,userID,  groupID, content, privacy,now, now)
+	result, err := db.ExecContext(ctx, stm, id,userID,  groupID, content, privacy,now, now)
 
 	if err != nil{
 		return "", err
