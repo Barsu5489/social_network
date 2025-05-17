@@ -43,10 +43,12 @@ func main() {
 	// Public routes without middleware
 	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	
 
 	// post routes with middleware
 	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
 	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
+	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
 
 	
 	// Start server
