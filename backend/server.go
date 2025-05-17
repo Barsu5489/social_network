@@ -46,6 +46,7 @@ func main() {
 
 	// post routes with middleware
 	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
+	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
 
 	
 	// Start server
