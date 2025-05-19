@@ -80,6 +80,6 @@ func DeletPost(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Post deleted successfully"})
+		json.NewEncoder(w).Encode("message: Post deleted successfully")
 	}
 }
