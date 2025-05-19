@@ -23,13 +23,12 @@ func main() {
 	// Models
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
-	postModel := &models.PostModel{DB: db}
+	// postModel := &models.PostModel{DB: db}
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
 	followHandler := &handlers.FollowHandler{FollowModel: followModel}
-	postHandler := &handlers.PostHandler{Post: postModel}
-
+	// postHandler := &handlers.PostHandler{Post: postModel}
 
 	//  Initialize router
 	router := mux.NewRouter()
@@ -45,7 +44,14 @@ func main() {
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
 
 	// post routes with middleware
-    router.HandleFunc("/post", auth.RequireAuth(postHandler.NewPost)).Methods("POST")
+	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
+	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
+	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
+
+	// User Profile routes
+	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
+	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
+
 	// Start server
 	http.ListenAndServe(":3000", router)
 

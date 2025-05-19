@@ -3,9 +3,12 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
+
+// type contextKey string
+
+// const userIDKey contextKey = "user_id"
 
 // RequireAuth middleware checks if a user is authenticated
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -24,8 +27,8 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		// Add user ID to request context
 		ctx := r.Context()
+		// ctx = context.WithValue(ctx, userIDKey, userID)
 		ctx = context.WithValue(ctx, "user_id", userID)
-		fmt.Println((ctx))
 
 		// Call the next handler with the updated context
 		next(w, r.WithContext(ctx))
