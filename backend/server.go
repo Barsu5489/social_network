@@ -42,6 +42,7 @@ func main() {
 	// Public routes without middleware
 	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	router.HandleFunc("/api/logout", authHandler.Logout).Methods("POST")
 
 	// post routes with middleware
 	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
