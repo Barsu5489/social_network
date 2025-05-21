@@ -146,3 +146,25 @@ func GetPostLikes(db *sql.DB, ctx context.Context, postID string) ([]Like, error
 	
 	return likes, nil
 }
+// HasUserLikedPost checks if a user has liked a specific post
+func HasUserLikedPost(db *sql.DB, ctx context.Context, userID, postID string) (bool, error) {
+	stmt := `
+		SELECT 1 FROM likes 
+		WHERE user_id = ? AND likeable_type = 'post' AND likeable_id = ? AND deleted_at IS NULL
+		LIMIT 1
+	`
+	
+	var exists int
+	err := db.QueryRowContext(ctx, stmt, userID, postID).Scan(&exists)
+	
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	
+	if err != nil {
+		return false, err
+	}
+	
+	return true, nil
+}
+
