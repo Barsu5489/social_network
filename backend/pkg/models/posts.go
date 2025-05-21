@@ -36,11 +36,22 @@ func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string
 // GetFeed retrieves posts from users the given user follows
 func GetFollowingPosts(db *sql.DB, userID string) ([]Post, error) {
 	stm := `
-	SELECT p.id, p.user_id, p.content, p.created_at
+		SELECT p.id, p.user_id, p.content, p.privacy, p.created_at,
+		       (SELECT COUNT(*) FROM likes 
+		        WHERE likeable_type = 'post' AND likeable_id = p.id AND deleted_at IS NULL) as likes_count,
+		       EXISTS(SELECT 1 FROM likes 
+		              WHERE likeable_type = 'post' AND likeable_id = p.id 
+		              AND user_id = ? AND deleted_at IS NULL) as user_liked
 	FROM posts p
-	JOIN follows f ON p.user_id = f.followed_id
-	WHERE f.follower_id = ?
-	ORDER BY p.created_at DESC;
+		JOIN follows f ON p.user_id = f.followed_id
+		WHERE f.follower_id = ? AND f.status = 'accepted'
+		  AND (p.privacy = 'public' 
+		       OR (p.privacy = 'almost_private' AND EXISTS(
+		             SELECT 1 FROM follows 
+		             WHERE follower_id = p.user_id AND followed_id = ? AND status = 'accepted'
+		          ))
+		       OR p.user_id = ?)
+		ORDER BY p.created_at DESC;
 	`
 	rows, err := db.Query(stm, userID)
 	if err != nil {
@@ -52,7 +63,7 @@ func GetFollowingPosts(db *sql.DB, userID string) ([]Post, error) {
 
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.ID, &post.UserID, &post.Content, &post.CreatedAt)
+		err := rows.Scan(&post.ID, &post.UserID, &post.Content, &post.Privacy, &post.CreatedAt, &post.LikesCount, &post.UserLiked)
 		if err != nil {
 			return nil, err
 		}
