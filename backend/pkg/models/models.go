@@ -32,8 +32,11 @@ type Post struct {
     Content   string  `json:"content"`
     Privacy   string  `json:"privacy"`
     CreatedAt int64   `json:"created_at"`
+
     UpdatedAt int64   `json:"updated_at"`
     DeletedAt *int64  `json:"deleted_at"` // Nullable
+	LikesCount int  `json:"likes_count"`
+	UserLiked  bool `json:"user_liked,omitempty"`
 }
 // Like represents a like on a post or comment
 type Like struct {
