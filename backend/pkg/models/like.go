@@ -57,4 +57,30 @@ func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableI
 	if err != nil {
 		return nil, err
 	}
-}
+		// Create notification for the content owner if it's a post like
+		if likeableType == "post" {
+			// Get post owner
+			var postOwnerID string
+			postOwnerStmt := `SELECT user_id FROM posts WHERE id = ?`
+			err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
+			if err == nil && postOwnerID != userID {
+				// Don't notify for self-likes
+				notificationID := uuid.New().String()
+				notifyStmt := `
+					INSERT INTO notifications (id, user_id, type, reference_id, is_read, created_at)
+					VALUES (?, ?, ?, ?, ?, ?)
+				`
+				db.ExecContext(ctx, notifyStmt, notificationID, postOwnerID, "new_like", id, false, now)
+			}
+		}
+	
+		return &Like{
+			ID:           id,
+			UserID:       userID,
+			LikeableType: likeableType,
+			LikeableID:   likeableID,
+			CreatedAt:    now,
+			DeletedAt:    nil,
+		}, nil
+	}
+
