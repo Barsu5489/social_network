@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableID string) (*Like, error) {
@@ -42,6 +44,17 @@ func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableI
 		return nil, errors.New("user already liked this content")
 	} else if err != sql.ErrNoRows {
 		// Some other database error
+		return nil, err
+	}
+	// Create new like
+	id := uuid.New().String()
+	insertStmt := `
+		INSERT INTO likes (id, user_id, likeable_type, likeable_id, created_at) 
+		VALUES (?, ?, ?, ?, ?)
+	`
+
+	_, err = db.ExecContext(ctx, insertStmt, id, userID, likeableType, likeableID, now)
+	if err != nil {
 		return nil, err
 	}
 }
