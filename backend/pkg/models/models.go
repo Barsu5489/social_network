@@ -35,3 +35,12 @@ type Post struct {
     UpdatedAt int64   `json:"updated_at"`
     DeletedAt *int64  `json:"deleted_at"` // Nullable
 }
+// Like represents a like on a post or comment
+type Like struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	LikeableType string    `json:"likeable_type"` // "post" or "comment"
+	LikeableID   string    `json:"likeable_id"`
+	CreatedAt    int64     `json:"created_at"`
+	DeletedAt    *int64    `json:"deleted_at,omitempty"`
+}
