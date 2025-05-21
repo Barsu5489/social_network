@@ -168,3 +168,22 @@ func HasUserLikedPost(db *sql.DB, ctx context.Context, userID, postID string) (b
 	return true, nil
 }
 
+// GetLikeCount returns the count of likes for a post or comment
+func GetLikeCount(db *sql.DB, ctx context.Context, likeableType, likeableID string) (int, error) {
+	if likeableType != "post" && likeableType != "comment" {
+		return 0, errors.New("invalid likeable type")
+	}
+
+	stmt := `
+		SELECT COUNT(*) FROM likes 
+		WHERE likeable_type = ? AND likeable_id = ? AND deleted_at IS NULL
+	`
+	
+	var count int
+	err := db.QueryRowContext(ctx, stmt, likeableType, likeableID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	
+	return count, nil
+}
