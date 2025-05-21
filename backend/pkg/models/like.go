@@ -111,3 +111,38 @@ func UnlikeContent(db *sql.DB, ctx context.Context, userID, likeableType, likeab
 	
 	return nil
 }
+
+// GetPostLikes retrieves all likes for a specific post
+func GetPostLikes(db *sql.DB, ctx context.Context, postID string) ([]Like, error) {
+	stmt := `
+		SELECT id, user_id, likeable_id, created_at 
+		FROM likes 
+		WHERE likeable_type = 'post' AND likeable_id = ? AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`
+	
+	rows, err := db.QueryContext(ctx, stmt, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var likes []Like
+	for rows.Next() {
+		var like Like
+		like.LikeableType = "post" 
+		
+		err := rows.Scan(&like.ID, &like.UserID, &like.LikeableID, &like.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		
+		likes = append(likes, like)
+	}
+	
+	if likes == nil {
+		return []Like{}, nil
+	}
+	
+	return likes, nil
+}
