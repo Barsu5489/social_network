@@ -84,3 +84,30 @@ func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableI
 		}, nil
 	}
 
+// UnlikeContent removes a like from a post or comment
+func UnlikeContent(db *sql.DB, ctx context.Context, userID, likeableType, likeableID string) error {
+	if likeableType != "post" && likeableType != "comment" {
+		return errors.New("invalid likeable type")
+	}
+
+	now := time.Now().Unix()
+	
+	// Soft delete the like by setting deleted_at
+	stmt := `
+		UPDATE likes 
+		SET deleted_at = ? 
+		WHERE user_id = ? AND likeable_type = ? AND likeable_id = ? AND deleted_at IS NULL
+	`
+	
+	result, err := db.ExecContext(ctx, stmt, now, userID, likeableType, likeableID)
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return errors.New("like not found or already removed")
+	}
+	
+	return nil
+}
