@@ -34,6 +34,7 @@ func NewPost(db *sql.DB) http.HandlerFunc {
 		}
 		_, err := models.CreatePost(db, ctx, userID, req.Content, req.Privacy, req.GroupID)
 		if err != nil {
+			fmt.Print(err)
 			http.Error(w, "Error creating Post", http.StatusBadRequest)
 			return
 		}
@@ -62,7 +63,34 @@ func FollowingPosts(db *sql.DB) http.HandlerFunc {
 
 		// Encode posts as JSON
 		json.NewEncoder(w).Encode(posts)
-	}
+	}	
+}
+// Get all posts
+func AllPosts(db *sql.DB) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodGet {
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+            return
+        }
+
+        // Get the authenticated user ID from context
+        userID, ok := r.Context().Value("user_id").(string)
+        if !ok {
+            http.Error(w, "Unauthorized", http.StatusUnauthorized)
+            return
+        }
+
+        // Get all posts
+        posts, err := models.GetAllPosts(db, userID)
+        if err != nil {
+            http.Error(w, "Error getting posts", http.StatusInternalServerError)
+            return
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(posts)
+    }
 }
 
 func DeletPost(db *sql.DB) http.HandlerFunc {
