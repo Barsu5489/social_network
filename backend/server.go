@@ -75,11 +75,6 @@ func main() {
 	// Start server
 	http.ListenAndServe(":3000", router)
 
-	// Test route
-	router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Server is running"))
-	})
 
 	// Start server with router
 	log.Println("Server starting on :3000...")
