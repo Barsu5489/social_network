@@ -3,6 +3,8 @@ package auth
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"social-nework/pkg/models"
@@ -97,10 +99,12 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 	}
 
 	// Verify password
+fmt.Println(password, passwordHash)
+
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
+		log.Printf("Password comparison failed: %v", err)
 		return nil, errors.New("invalid credentials")
 	}
-
 	return &user, nil
 }

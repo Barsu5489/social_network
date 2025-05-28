@@ -3,7 +3,7 @@ package models
 type User struct {
 	ID           string `json:"id"`            
 	Email        string `json:"email"`          
-	PasswordHash string `json:"password_hash"`  
+	PasswordHash string `json:"password"`  
 	FirstName    string `json:"first_name"`    
 	LastName     string `json:"last_name"`     
 	Nickname     string `json:"nickname"`       
@@ -32,6 +32,18 @@ type Post struct {
     Content   string  `json:"content"`
     Privacy   string  `json:"privacy"`
     CreatedAt int64   `json:"created_at"`
+
     UpdatedAt int64   `json:"updated_at"`
     DeletedAt *int64  `json:"deleted_at"` // Nullable
+	LikesCount int  `json:"likes_count"`
+	UserLiked  bool `json:"user_liked,omitempty"`
+}
+// Like represents a like on a post or comment
+type Like struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	LikeableType string    `json:"likeable_type"` // "post" or "comment"
+	LikeableID   string    `json:"likeable_id"`
+	CreatedAt    int64     `json:"created_at"`
+	DeletedAt    *int64    `json:"deleted_at,omitempty"`
 }

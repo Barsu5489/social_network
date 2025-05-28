@@ -48,21 +48,33 @@ func main() {
 	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
 	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
 	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
+	router.HandleFunc("/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
+
 
 	// User Profile routes
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
 
+// todo - fix likes models and handlers
+	// Like a post
+	router.HandleFunc("/posts/{post_id}/like",auth.RequireAuth( handlers.LikePost(db))).Methods(http.MethodPost)
+
+	// Unlike a post
+	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodDelete)
+
+	// Get likes for a post
+	router.HandleFunc("/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods(http.MethodGet)
+
+	// Get posts liked by a user
+	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
+
+	// Optional: To get liked posts by currently logged-in user
+	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
+
+
 	// Start server
 	http.ListenAndServe(":3000", router)
 
-	router.HandleFunc("/api/logout", authHandler.Logout)
-
-	// Test route
-	router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Server is running"))
-	})
 
 	// Start server with router
 	log.Println("Server starting on :3000...")
