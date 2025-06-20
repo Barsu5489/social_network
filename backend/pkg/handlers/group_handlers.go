@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"social-nework/pkg/models"
 	"strconv"
-	// "your-app/db"
 
 	"github.com/gorilla/mux"
 )
