@@ -1,5 +1,5 @@
 <script>
-  import Register from '$lib/components/Register.svelte';
+  import RegisterPanel from '$lib/components/RegisterPanel.svelte';
 </script>
 
-<Register />
+<RegisterPanel />

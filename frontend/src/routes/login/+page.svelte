@@ -1,5 +1,5 @@
 <script>
-  import Login from '$lib/components/Login.svelte';
+  import AuthPanel from '$lib/components/AuthPanel.svelte';
 </script>
 
-<Login />
+<AuthPanel />
