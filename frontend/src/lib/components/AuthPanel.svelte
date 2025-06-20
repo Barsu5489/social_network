@@ -1,200 +1,141 @@
 <script>
-  import { login } from '../services/auth/authService';
-  import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
-
-  let email = '';
-  let password = '';
-  let rememberMe = false;
-  let error = '';
-  let loading = false;
-
-  async function handleLogin() {
-    if (!email || !password) {
-      error = 'Please fill in all fields';
-      return;
-    }
-
-    if (password.length < 6) {
-      error = 'Password must be at least 6 characters';
-      return;
-    }
-
-    loading = true;
-    error = '';
-
-    try {
-      await login({ email, password });
-      goto('/');
-    } catch (err) {
-      error = err.message || 'Login failed';
-    } finally {
-      loading = false;
-    }
-  }
-
-  onMount(() => {
-    // Check if user is already authenticated
-    // This is just a placeholder - you'll need to implement this
-    // if (isAuthenticated()) {
-    //   goto('/');
-    // }
-  });
-</script>
-
-<style>
-  .auth-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .auth-header {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #6366f1;
-    text-transform: uppercase;
-    margin-bottom: 2rem;
-    text-align: center;
-  }
-
-  .form-control {
-    position: relative;
-    margin-bottom: 1.5rem;
-    width: 100%;
-  }
-
-  .form-control input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    padding-left: 3rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    font-size: 1rem;
-    transition: border-color 0.2s ease;
-  }
-
-  .form-control input:focus {
-    border-color: #6366f1;
-    outline: none;
-  }
-
-  .form-control svg {
-    position: absolute;
-    top: 50%;
-    left: 1rem;
-    transform: translateY(-50%);
-    color: #6b7280;
-  }
-
-  .remember-me {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .remember-me input {
-    margin-right: 0.5rem;
-  }
-
-  .forgot-password {
-    text-align: right;
-    margin-bottom: 1.5rem;
-  }
-
-  .forgot-password a {
-    color: #6b7280;
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .forgot-password a:hover {
-    color: #6366f1;
-  }
-
-  .login-button {
-    width: 100%;
-    padding: 0.75rem;
-    background: linear-gradient(90deg, #6366f1 0%, #4338ca 100%);
-    color: white;
-    border: none;
-    border-radius: 0.375rem;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease;
-  }
-
-  .login-button:hover {
-    background: linear-gradient(90deg, #4338ca 0%, #6366f1 100%);
-    transform: scale(1.02);
-  }
-
-  .login-button:disabled {
-    background: #a5b4fc;
-    cursor: not-allowed;
-  }
-
-  .error {
-    color: red;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
-</style>
-
-<div class="auth-panel">
-  <h2 class="auth-header">USER LOGIN</h2>
-
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
-
-  <form on:submit|preventDefault={handleLogin}>
-    <div class="form-control">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-        <path fill-rule="evenodd" d="M18 10a8 8 0 100-16 8 8 0 000 16zm-6-3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-1 5.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clip-rule="evenodd" />
-      </svg>
-      <input
-        type="email"
-        placeholder="Enter username"
-        bind:value={email}
-      />
+    let isLogin = true;
+    let username = "";
+    let email = "";
+    let password = "";
+    let remember = false;
+  
+    const handleSubmit = () => {
+      if (isLogin) {
+        alert(`Logging in with ${username}, remember: ${remember}`);
+      } else {
+        alert(`Registering with ${username}, email: ${email}`);
+      }
+    };
+  </script>
+  
+  <div class="auth-container">
+    <div class="tab-toggle">
+      <button on:click={() => isLogin = true} class:is-active={isLogin}>Login</button>
+      <button on:click={() => isLogin = false} class:is-active={!isLogin}>Register</button>
     </div>
-
-    <div class="form-control">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-        <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v9a5.25 5.25 0 1010.5 0v-9a5.25 5.25 0 00-5.25-5.25zm3 8.25a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clip-rule="evenodd" />
-      </svg>
-      <input
-        type="password"
-        placeholder="Enter password"
-        bind:value={password}
-      />
-    </div>
-
-    <div class="remember-me">
-      <input type="checkbox" bind:checked={rememberMe} />
-      <label>Remember me</label>
-    </div>
-
-    <div class="forgot-password">
-      <a href="#">Forgot password?</a>
-    </div>
-
-    <button
-      type="submit"
-      class="login-button"
-      disabled={loading}
-    >
-      {#if loading}
-        <span>Loading...</span>
-      {:else}
-        <span>LOGIN</span>
+  
+    <h2>{isLogin ? 'USER LOGIN' : 'REGISTER'}</h2>
+  
+    <form on:submit|preventDefault={handleSubmit}>
+      <div class="input-group">
+        <span class="icon">👤</span>
+        <input type="text" placeholder="Enter username" bind:value={username} required />
+      </div>
+  
+      {#if !isLogin}
+        <div class="input-group">
+          <span class="icon">📧</span>
+          <input type="email" placeholder="Enter email" bind:value={email} required />
+        </div>
       {/if}
-    </button>
-  </form>
-</div>
+  
+      <div class="input-group">
+        <span class="icon">🔒</span>
+        <input type="password" placeholder="Enter password" bind:value={password} required minlength="6" />
+      </div>
+  
+      {#if isLogin}
+        <div class="options">
+          <label><input type="checkbox" bind:checked={remember} /> Remember</label>
+          <a href="#">Forgot password?</a>
+        </div>
+      {/if}
+  
+      <button type="submit" class="login-button">{isLogin ? 'LOGIN' : 'REGISTER'}</button>
+    </form>
+  </div>
+  
+  <style>
+    .auth-container {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+  
+    .tab-toggle {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 0.5rem;
+    }
+  
+    .tab-toggle button {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      background: transparent;
+      font-weight: 600;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+  
+    .tab-toggle button.is-active {
+      color: #6366f1;
+      border-color: #6366f1;
+    }
+  
+    h2 {
+      text-align: center;
+      color: #6366f1;
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+  
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+  
+    .input-group {
+      display: flex;
+      align-items: center;
+      border: 1px solid #e5e7eb;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      background: #f9fafb;
+      gap: 0.5rem;
+    }
+  
+    .input-group input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+    }
+  
+    .options {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+  
+    .login-button {
+      background: linear-gradient(to right, #6366f1, #ec4899);
+      color: white;
+      border: none;
+      padding: 0.75rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+  
+    .login-button:hover {
+      transform: scale(1.03);
+    }
+  
+    .icon {
+      font-size: 1.25rem;
+    }
+  </style>
+  
