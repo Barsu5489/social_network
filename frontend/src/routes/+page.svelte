@@ -1,9 +1,12 @@
 <!-- src/routes/+page.svelte -->
 <script>
+    import Navbar from '$lib/components/Navbar.svelte';
+    import PostCard from '$lib/components/PostCard.svelte';
+    
     let activeTab = 'discover';
     let searchQuery = '';
     
-    // Mock data
+    // Mock data - replace with API calls to your Go backend
     const posts = [
       {
         id: 1,
@@ -30,17 +33,6 @@
       }
     ];
   
-    const sidebarItems = [
-      { icon: '🏠', label: 'Home', active: false },
-      { icon: '🔍', label: 'Explore', active: false },
-      { icon: '🔔', label: 'Notifications', active: false },
-      { icon: '💬', label: 'Chat', active: false },
-      { icon: '📋', label: 'Feeds', active: false },
-      { icon: '📝', label: 'Lists', active: false },
-      { icon: '👤', label: 'Profile', active: false },
-      { icon: '⚙️', label: 'Settings', active: false }
-    ];
-  
     const trendingTopics = [
       'NBA Finals',
       'National Guard', 
@@ -50,39 +42,75 @@
       'SCOTUS'
     ];
   
+    // Tab functions
     function setActiveTab(tab) {
       activeTab = tab;
     }
   
-    function formatNumber(num) {
-      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-      return num.toString();
+    // Navbar event handlers
+    function handleNewPost() {
+      console.log('New post clicked');
+      // TODO: Open compose modal or navigate to compose page
+    }
+  
+    function handleNavigation(event) {
+      console.log('Navigation:', event.detail);
+      // TODO: Handle navigation with your router
+    }
+  
+    // PostCard event handlers
+    function handleReply(event) {
+      console.log('Reply to post:', event.detail.postId);
+      // TODO: Open reply modal or navigate to reply page
+    }
+  
+    function handleRepost(event) {
+      console.log('Repost:', event.detail.postId);
+      // TODO: Handle repost logic
+    }
+  
+    function handleLike(event) {
+      console.log('Like post:', event.detail.postId);
+      // TODO: Handle like/unlike logic
+    }
+  
+    function handleShare(event) {
+      console.log('Share post:', event.detail.postId);
+      // TODO: Open share modal
+    }
+  
+    function handleAuthorClick(event) {
+      console.log('Author clicked:', event.detail.handle);
+      // TODO: Navigate to author profile
+    }
+  
+    function handlePlayVideo(event) {
+      console.log('Play video:', event.detail);
+      // TODO: Open video player
+    }
+  
+    function handleViewMedia(event) {
+      console.log('View media:', event.detail);
+      // TODO: Open media viewer
+    }
+  
+    // Trending topic handler
+    function handleTrendingClick(topic) {
+      console.log('Trending topic clicked:', topic);
+      // TODO: Navigate to topic page or search
     }
   </script>
   
+  <svelte:head>
+    <title>SkyClone - Discover</title>
+  </svelte:head>
+  
   <div class="container">
-    <!-- Left Sidebar -->
-    <aside class="sidebar">
-      <div class="logo">
-        <div class="logo-icon">🦋</div>
-      </div>
-      
-      <nav class="nav-menu">
-        {#each sidebarItems as item}
-          <a href="#" class="nav-item" class:active={item.active}>
-            <span class="nav-icon">{item.icon}</span>
-            <span class="nav-label">{item.label}</span>
-          </a>
-        {/each}
-      </nav>
-      
-      <button class="new-post-btn">New Post</button>
-      
-      <div class="user-menu">
-        <div class="user-avatar"></div>
-      </div>
-    </aside>
+    <!-- Left Sidebar Navigation -->
+    <Navbar 
+      on:newPost={handleNewPost}
+      on:navigate={handleNavigation}
+    />
   
     <!-- Main Content -->
     <main class="main-content">
@@ -113,49 +141,17 @@
   
       <!-- Posts Feed -->
       <div class="feed">
-        {#each posts as post}
-          <article class="post">
-            <div class="post-header">
-              <div class="author-avatar"></div>
-              <div class="author-info">
-                <h3 class="author-name">{post.author}</h3>
-                <span class="author-handle">{post.handle}</span>
-                <span class="post-time">· {post.time}</span>
-              </div>
-            </div>
-            
-            <div class="post-content">
-              <p>{post.content}</p>
-              {#if post.image}
-                <div class="post-media">
-                  {#if post.hasVideo}
-                    <div class="video-overlay">
-                      <div class="play-button">▶</div>
-                    </div>
-                  {/if}
-                  <img src={post.image} alt="Post media" />
-                </div>
-              {/if}
-            </div>
-            
-            <div class="post-actions">
-              <button class="action-btn">
-                <span class="action-icon">💬</span>
-                <span class="action-count">{formatNumber(post.replies)}</span>
-              </button>
-              <button class="action-btn">
-                <span class="action-icon">🔄</span>
-                <span class="action-count">{formatNumber(post.reposts)}</span>
-              </button>
-              <button class="action-btn">
-                <span class="action-icon">❤️</span>
-                <span class="action-count">{formatNumber(post.likes)}</span>
-              </button>
-              <button class="action-btn">
-                <span class="action-icon">📤</span>
-              </button>
-            </div>
-          </article>
+        {#each posts as post (post.id)}
+          <PostCard 
+            {post}
+            on:reply={handleReply}
+            on:repost={handleRepost}
+            on:like={handleLike}
+            on:share={handleShare}
+            on:authorClick={handleAuthorClick}
+            on:playVideo={handlePlayVideo}
+            on:viewMedia={handleViewMedia}
+          />
         {/each}
       </div>
     </main>
@@ -184,16 +180,21 @@
         <h3 class="section-title">📈 Trending</h3>
         <div class="trending-list">
           {#each trendingTopics as topic}
-            <button class="trending-item">{topic}</button>
+            <button 
+              class="trending-item"
+              on:click={() => handleTrendingClick(topic)}
+            >
+              {topic}
+            </button>
           {/each}
         </div>
       </div>
       
       <div class="sidebar-footer">
-        <a href="#">Feedback</a>
-        <a href="#">Privacy</a>
-        <a href="#">Terms</a>
-        <a href="#">Help</a>
+        <a href="/feedback">Feedback</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/help">Help</a>
       </div>
     </aside>
   </div>
@@ -207,94 +208,11 @@
       margin: 0 auto;
     }
   
-    /* Left Sidebar */
-    .sidebar {
-      padding: 20px;
-      border-right: 1px solid var(--border-color);
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-  
-    .logo {
-      margin-bottom: 30px;
-    }
-  
-    .logo-icon {
-      font-size: 32px;
-      width: 50px;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary-blue), #00d4ff);
-    }
-  
-    .nav-menu {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-  
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 16px;
-      border-radius: 24px;
-      text-decoration: none;
-      color: var(--text-primary);
-      font-size: 20px;
-      font-weight: 400;
-      transition: background-color 0.2s ease;
-    }
-  
-    .nav-item:hover {
-      background-color: var(--bg-secondary);
-    }
-  
-    .nav-item.active {
-      font-weight: 700;
-    }
-  
-    .nav-icon {
-      font-size: 24px;
-      width: 26px;
-      text-align: center;
-    }
-  
-    .new-post-btn {
-      background: var(--primary-blue);
-      color: white;
-      padding: 16px 32px;
-      font-size: 17px;
-      margin: 20px 0;
-      width: 100%;
-    }
-  
-    .new-post-btn:hover {
-      background: var(--primary-blue-hover);
-    }
-  
-    .user-menu {
-      margin-top: auto;
-    }
-  
-    .user-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-    }
-  
     /* Main Content */
     .main-content {
       border-right: 1px solid var(--border-color);
       min-height: 100vh;
+      background: var(--bg-primary);
     }
   
     .header-tabs {
@@ -315,6 +233,9 @@
       font-weight: 500;
       border-radius: 0;
       position: relative;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
   
     .tab-btn:hover {
@@ -342,118 +263,6 @@
       max-width: 100%;
     }
   
-    .post {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-color);
-      transition: background-color 0.2s ease;
-    }
-  
-    .post:hover {
-      background: rgba(0, 0, 0, 0.02);
-    }
-  
-    .post-header {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-  
-    .author-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      flex-shrink: 0;
-    }
-  
-    .author-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-  
-    .author-name {
-      font-weight: 700;
-      font-size: 15px;
-      margin: 0;
-      color: var(--text-primary);
-    }
-  
-    .author-handle, .post-time {
-      color: var(--text-secondary);
-      font-size: 15px;
-    }
-  
-    .post-content p {
-      margin: 0 0 12px 0;
-      font-size: 15px;
-      line-height: 1.5;
-      white-space: pre-line;
-    }
-  
-    .post-media {
-      position: relative;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 12px;
-    }
-  
-    .post-media img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-  
-    .video-overlay {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 2;
-    }
-  
-    .play-button {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      cursor: pointer;
-    }
-  
-    .post-actions {
-      display: flex;
-      gap: 60px;
-      margin-top: 12px;
-      padding-left: 52px;
-    }
-  
-    .action-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: none;
-      color: var(--text-secondary);
-      font-size: 13px;
-      padding: 8px;
-      border-radius: 20px;
-      transition: all 0.2s ease;
-    }
-  
-    .action-btn:hover {
-      background: rgba(29, 155, 240, 0.1);
-      color: var(--primary-blue);
-    }
-  
-    .action-icon {
-      font-size: 18px;
-    }
-  
     /* Right Sidebar */
     .right-sidebar {
       padding: 20px 16px;
@@ -461,6 +270,7 @@
       top: 0;
       height: 100vh;
       overflow-y: auto;
+      background: var(--bg-primary);
     }
   
     .search-box {
@@ -474,11 +284,16 @@
       border-radius: 24px;
       padding: 12px 16px;
       font-size: 15px;
+      color: var(--text-primary);
     }
   
     .search-input:focus {
       background: var(--bg-primary);
       border-color: var(--primary-blue);
+    }
+  
+    .search-input::placeholder {
+      color: var(--text-secondary);
     }
   
     .sidebar-section {
@@ -503,6 +318,7 @@
       border-radius: 20px;
       font-size: 13px;
       transition: all 0.2s ease;
+      cursor: pointer;
     }
   
     .section-tab:hover {
@@ -539,6 +355,7 @@
       font-size: 15px;
       border-radius: 8px;
       transition: background-color 0.2s ease;
+      cursor: pointer;
     }
   
     .trending-item:hover {
@@ -557,25 +374,18 @@
       color: var(--text-secondary);
       text-decoration: none;
       font-size: 13px;
+      transition: color 0.2s ease;
     }
   
     .sidebar-footer a:hover {
       text-decoration: underline;
+      color: var(--primary-blue);
     }
   
     /* Responsive Design */
     @media (max-width: 1024px) {
       .container {
         grid-template-columns: 68px 1fr 300px;
-      }
-      
-      .nav-label {
-        display: none;
-      }
-      
-      .new-post-btn {
-        padding: 12px;
-        font-size: 24px;
       }
     }
   
@@ -584,7 +394,6 @@
         grid-template-columns: 1fr;
       }
       
-      .sidebar,
       .right-sidebar {
         display: none;
       }
