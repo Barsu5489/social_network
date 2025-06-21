@@ -4,7 +4,7 @@
 
 <div class="hero-container">
   <div class="overlay">
-    <h1>Welcome to website</h1>
+    <h1>Welcome to Skiep</h1>
     <p>
       Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam
       nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
