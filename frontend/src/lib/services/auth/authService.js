@@ -11,7 +11,20 @@ export async function register({ firstName, lastName, email, password }) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ firstName, lastName, email, password })
+    body: JSON.stringify({
+      FirstName: firstName,
+      LastName: lastName,
+      Email: email,
+      PasswordHash: password,
+      Nickname: "",
+      DateOfBirth: "",
+      AboutMe: "",
+      AvatarURL: "",
+      IsPrivate: false,
+      CreatedAt: 0,
+      UpdatedAt: 0,
+      DeletedAt: null,
+    })
   });
 
   if (!response.ok) {
@@ -21,13 +34,13 @@ export async function register({ firstName, lastName, email, password }) {
   return response.json();
 }
 
-export async function login(credentials) {
+export async function login({ email, password }) {
   const response = await fetch(`${API_URL}/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(credentials)
+    body: JSON.stringify({ email, password })
   });
 
   if (!response.ok) {

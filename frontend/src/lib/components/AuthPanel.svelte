@@ -13,6 +13,7 @@
         try {
           const result = await login({ email, password });
           alert(`Login successful! ${JSON.stringify(result)}`);
+          console.log('user logged in');
         } catch (error) {
           alert(`Login failed: ${error.message}`);
         }
@@ -20,6 +21,7 @@
         try {
           const result = await register({ firstName, lastName, email: email, password });
           alert(`Registration successful! ${JSON.stringify(result)}`);
+          console.log('user registered in');
         } catch (error) {
           alert(`Registration failed: ${error.message}`);
         }
