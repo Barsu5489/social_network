@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 export const user = writable(null);
 export const isAuthenticated = writable(false);
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:8080/api';
 
 export async function register({ firstName, lastName, email, password }) {
   const response = await fetch(`${API_URL}/register`, {
