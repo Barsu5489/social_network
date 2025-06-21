@@ -50,14 +50,13 @@ func main() {
 	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
 	router.HandleFunc("/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
 
-
 	// User Profile routes
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
 
-// todo - fix likes models and handlers
+	// todo - fix likes models and handlers
 	// Like a post
-	router.HandleFunc("/posts/{post_id}/like",auth.RequireAuth( handlers.LikePost(db))).Methods(http.MethodPost)
+	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodPost)
 
 	// Unlike a post
 	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodDelete)
@@ -71,14 +70,12 @@ func main() {
 	// Optional: To get liked posts by currently logged-in user
 	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
-
 	// Start server
-	http.ListenAndServe(":3000", router)
-
+	http.ListenAndServe(":8080", router)
 
 	// Start server with router
-	log.Println("Server starting on :3000...")
-	if err := http.ListenAndServe(":3000", router); err != nil {
+	log.Println("Server starting on :8080...")
+	if err := http.ListenAndServe(":8080", router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
