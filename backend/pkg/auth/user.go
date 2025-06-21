@@ -9,7 +9,7 @@ import (
 
 	"social-nework/pkg/models"
 	"social-nework/pkg/utils"
-
+	
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -101,7 +101,7 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 	// Verify password
 fmt.Println(password, passwordHash)
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	err = CheckPassword(password, passwordHash)
 	if err != nil {
 		log.Printf("Password comparison failed: %v", err)
 		return nil, errors.New("invalid credentials")
