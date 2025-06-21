@@ -1,6 +1,7 @@
 <script>
     let isLogin = true;
-    let username = "";
+    let firstName = "";
+    let lastName = "";
     let email = "";
     let password = "";
     let remember = false;
@@ -10,14 +11,14 @@
     const handleSubmit = async () => {
       if (isLogin) {
         try {
-          const result = await login({ username, password });
+          const result = await login({ email, password });
           alert(`Login successful! ${JSON.stringify(result)}`);
         } catch (error) {
           alert(`Login failed: ${error.message}`);
         }
       } else {
         try {
-          const result = await register({ username, email, password });
+          const result = await register({ firstName, lastName, email: email, password });
           alert(`Registration successful! ${JSON.stringify(result)}`);
         } catch (error) {
           alert(`Registration failed: ${error.message}`);
@@ -37,7 +38,12 @@
     <form on:submit|preventDefault={handleSubmit}>
       <div class="input-group">
         <span class="icon">👤</span>
-        <input type="text" placeholder="Enter username" bind:value={username} required />
+        <input type="text" placeholder="Enter first name" bind:value={firstName} required />
+      </div>
+
+      <div class="input-group">
+        <span class="icon">👤</span>
+        <input type="text" placeholder="Enter last name" bind:value={lastName} required />
       </div>
   
       {#if !isLogin}

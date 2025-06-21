@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"social-nework/pkg/models"
-"social-nework/pkg/auth"
 	"github.com/google/uuid"
+	"social-nework/pkg/auth"
 )
 
 type UserModel interface {
@@ -30,13 +30,23 @@ func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	user.ID = uuid.New().String() // Generate unique ID here
+	user.ID = uuid.New().String()
+
+	// Hash the password
+	hashedPassword, err := auth.HashPassword(user.PasswordHash)
+	if err != nil {
+		log.Println("Password hashing error:", err)
+		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+		return
+	}
+	user.PasswordHash = hashedPassword
 
 	if err := a.UserModel.Insert(user); err != nil {
 		log.Println("Insert error:", err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
+
 	// Set content type and status code for success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

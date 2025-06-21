@@ -5,13 +5,13 @@ export const isAuthenticated = writable(false);
 
 const API_URL = 'http://localhost:3000/api';
 
-export async function register(userData) {
+export async function register({ firstName, lastName, email, password }) {
   const response = await fetch(`${API_URL}/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(userData)
+    body: JSON.stringify({ firstName, lastName, email, password })
   });
 
   if (!response.ok) {
