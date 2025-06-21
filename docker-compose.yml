@@ -1,21 +1,42 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "5173:5173"
-    networks:
-      - social-network-net
-
   backend:
     build:
       context: ./backend
+    container_name: social-backend
     ports:
       - "8080:8080"
+    environment:
+      - GOMAXPROCS=1
+      - GOMEMLIMIT=128MiB
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
     networks:
       - social-network-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: social-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.25'
+    depends_on:
+      - backend
+    networks:
+      - social-network-net
+    restart: unless-stopped
 
 networks:
   social-network-net:
