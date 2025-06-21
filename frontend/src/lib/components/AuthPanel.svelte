@@ -5,11 +5,23 @@
     let password = "";
     let remember = false;
   
-    const handleSubmit = () => {
+    import { register, login } from '$lib/services/auth/authService';
+
+    const handleSubmit = async () => {
       if (isLogin) {
-        alert(`Logging in with ${username}, remember: ${remember}`);
+        try {
+          const result = await login({ username, password });
+          alert(`Login successful! ${JSON.stringify(result)}`);
+        } catch (error) {
+          alert(`Login failed: ${error.message}`);
+        }
       } else {
-        alert(`Registering with ${username}, email: ${email}`);
+        try {
+          const result = await register({ username, email, password });
+          alert(`Registration successful! ${JSON.stringify(result)}`);
+        } catch (error) {
+          alert(`Registration failed: ${error.message}`);
+        }
       }
     };
   </script>
