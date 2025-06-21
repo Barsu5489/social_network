@@ -37,36 +37,37 @@
   
     <h2>{isLogin ? 'USER LOGIN' : 'REGISTER'}</h2>
   
-    <form on:submit|preventDefault={handleSubmit}>
-      <div class="input-group">
-        <span class="icon">👤</span>
-        <input type="text" placeholder="Enter first name" bind:value={firstName} required />
-      </div>
+<form on:submit|preventDefault={handleSubmit}>
+  {#if !isLogin}
+    <div class="input-group">
+      <span class="icon">👤</span>
+      <input type="text" placeholder="Enter first name" bind:value={firstName} required />
+    </div>
 
-      <div class="input-group">
-        <span class="icon">👤</span>
-        <input type="text" placeholder="Enter last name" bind:value={lastName} required />
-      </div>
-  
-      {#if !isLogin}
-        <div class="input-group">
-          <span class="icon">📧</span>
-          <input type="email" placeholder="Enter email" bind:value={email} required />
-        </div>
-      {/if}
-  
-      <div class="input-group">
-        <span class="icon">🔒</span>
-        <input type="password" placeholder="Enter password" bind:value={password} required minlength="6" />
-      </div>
-  
-      {#if isLogin}
-        <div class="options">
-          <label><input type="checkbox" bind:checked={remember} /> Remember</label>
-          <a href="#">Forgot password?</a>
-        </div>
-      {/if}
-  
-      <button type="submit" class="login-button">{isLogin ? 'LOGIN' : 'REGISTER'}</button>
-    </form>
+    <div class="input-group">
+      <span class="icon">👤</span>
+      <input type="text" placeholder="Enter last name" bind:value={lastName} required />
+    </div>
+  {/if}
+
+  <div class="input-group">
+    <span class="icon">📧</span>
+    <input type="email" placeholder="Enter email" bind:value={email} required />
+  </div>
+
+  <div class="input-group">
+    <span class="icon">🔒</span>
+    <input type="password" placeholder="Enter password" bind:value={password} required minlength="6" />
+  </div>
+
+  {#if isLogin}
+    <div class="options">
+      <label><input type="checkbox" bind:checked={remember} /> Remember</label>
+      <a href="#">Forgot password?</a>
+    </div>
+  {/if}
+
+  <button type="submit" class="login-button">{isLogin ? 'LOGIN' : 'REGISTER'}</button>
+</form>
+
   </div>
