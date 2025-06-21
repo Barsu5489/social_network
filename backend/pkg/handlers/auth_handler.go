@@ -115,7 +115,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"email":      user.Email,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
-		},
+			},
 	})
 }
 // Logout terminates a user's session
