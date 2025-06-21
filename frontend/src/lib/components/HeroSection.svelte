@@ -6,8 +6,8 @@
   <div class="overlay">
     <h1>Welcome to Skiep</h1>
     <p>
-      Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam
-      nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.
+    The plartorm that gives you freedom to express your inner self what you were 
+    meant to be. Post the most exiting moments of life, we only have this one 😁.
     </p>
   </div>
 
