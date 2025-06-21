@@ -1,5 +1,6 @@
 <script>
-  import RegisterPanel from '$lib/components/RegisterPanel.svelte';
+  import AuthPanel from '$lib/components/AuthPanel.svelte';
 </script>
 
-<RegisterPanel />
+<AuthPanel />
+

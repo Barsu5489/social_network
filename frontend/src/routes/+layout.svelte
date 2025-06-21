@@ -11,7 +11,7 @@
 <main class="app">
   <slot />
 </main>
-
+<!-- 
 <style>
   :global(html) {
     --primary-blue: #1185fe;
@@ -80,4 +80,4 @@
       --border-hover: #3d4144;
     }
   }
-</style>
+</style> -->

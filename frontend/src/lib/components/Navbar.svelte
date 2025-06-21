@@ -17,49 +17,6 @@
   }
 </script>
 
-<style>
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #ccc;
-  }
-
-  .navbar a {
-    margin: 0 1rem;
-    text-decoration: none;
-    color: #007bff;
-    font-weight: bold;
-  }
-
-  .navbar a:hover {
-    text-decoration: underline;
-  }
-
-  .user-info {
-    display: flex;
-    align-items: center;
-  }
-
-  .user-info span {
-    margin-right: 0.5rem;
-  }
-
-  .logout-btn {
-    background: none;
-    border: none;
-    color: #dc3545;
-    cursor: pointer;
-    font-weight: bold;
-  }
-
-  .logout-btn:hover {
-    text-decoration: underline;
-  }
-</style>
-
   <nav class="navbar">
   <div>
     <a href="/">Home</a>
