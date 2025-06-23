@@ -88,3 +88,11 @@ type Event struct {
 	CreatedAt   int64  `json:"created_at"`
 	UpdatedAt   int64  `json:"updated_at"`
 }
+
+type EventAttendee struct {
+	ID        string `json:"id"`
+	EventID   string `json:"event_id"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"` // going, maybe, not_going
+	CreatedAt int64  `json:"created_at"`
+}
