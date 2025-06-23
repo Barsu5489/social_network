@@ -96,3 +96,13 @@ type EventAttendee struct {
 	Status    string `json:"status"` // going, maybe, not_going
 	CreatedAt int64  `json:"created_at"`
 }
+
+type Comment struct {
+	ID        string `json:"id"`
+	PostID    string `json:"post_id"`
+	UserID    string `json:"user_id"`
+	Content   string `json:"content"`
+	ImageURL  string `json:"image_url"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
