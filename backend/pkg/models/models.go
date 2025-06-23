@@ -75,3 +75,16 @@ type Invitation struct {
 	Status     string `json:"status"`
 	CreatedAt  int64  `json:"created_at"`
 }
+
+type Event struct {
+	ID          string `json:"id"`
+	GroupID     string `json:"group_id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Location    string `json:"location"`
+	StartTime   int64  `json:"start_time"`
+	EndTime     int64  `json:"end_time"`
+	CreatedBy   string `json:"created_by"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
