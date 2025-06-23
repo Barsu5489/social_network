@@ -12,6 +12,13 @@ import (
 
 // Create a new group
 func (gh *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	// Get authenticated user ID from context
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var group models.Group
 	if err := json.NewDecoder(r.Body).Decode(&group); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -21,6 +28,7 @@ func (gh *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	group.ID = uuid.New().String()
 	group.CreatedAt = time.Now().Unix()
 	group.UpdatedAt = time.Now().Unix()
+	group.CreatorID = userID
 
 	query := `INSERT INTO groups (id, name, description, creator_id, is_private, created_at, updated_at) 
 			  VALUES (?, ?, ?, ?, ?, ?, ?)`
