@@ -11,11 +11,30 @@ import (
 
 // Invite user to group
 func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var invitation models.Invitation
 	if err := json.NewDecoder(r.Body).Decode(&invitation); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	// Validate required fields
+	if invitation.InviteeID == "" {
+		http.Error(w, "Missing required field: invitee_id", http.StatusBadRequest)
+		return
+	}
+	if invitation.EntityID == "" {
+		http.Error(w, "Missing required field: entity_id (group ID)", http.StatusBadRequest)
+		return
+	}
+
+	// Set inviter ID from the authenticated user
+	invitation.InviterID = userID
 
 	// Check if inviter is member of the group
 	memberQuery := `SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND deleted_at IS NULL`
