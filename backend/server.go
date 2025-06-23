@@ -9,6 +9,7 @@ import (
 	"social-nework/pkg/auth"
 	"social-nework/pkg/db/sqlite"
 	"social-nework/pkg/handlers"
+	"social-nework/pkg/handlers/groups"
 	"social-nework/pkg/models"
 )
 
@@ -24,6 +25,7 @@ func main() {
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
 	// postModel := &models.PostModel{DB: db}
+	groupHandler := groups.NewGroupHandler(db)
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
@@ -67,6 +69,24 @@ func main() {
 
 	// Get posts liked by a user
 	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
+
+	// Group Management Routes
+	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.CreateGroup)).Methods("POST")
+	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.GetAllGroups)).Methods("GET")
+
+	// Group Invitation Routes
+	router.HandleFunc("/api/groups/invite", auth.RequireAuth(groupHandler.InviteToGroup)).Methods("POST")
+	router.HandleFunc("/api/groups/join/{groupId}", auth.RequireAuth(groupHandler.RequestToJoinGroup)).Methods("POST")
+	router.HandleFunc("/api/invitations/{id}/respond", auth.RequireAuth(groupHandler.RespondToInvitation)).Methods("PUT")
+
+	// Group Content Routes
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.CreateGroupPost)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.GetGroupPosts)).Methods("GET")
+
+	// Group Event Routes
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.CreateEvent)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.GetGroupEvents)).Methods("GET")
+	router.HandleFunc("/api/events/{eventId}/rsvp", auth.RequireAuth(groupHandler.RSVPEvent)).Methods("POST")
 
 	// Optional: To get liked posts by currently logged-in user
 	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
