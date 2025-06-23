@@ -23,6 +23,11 @@ func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if invitation.InviteeID == userID {
+		http.Error(w, "You can't invite yourself", http.StatusBadRequest)
+		return
+	}
+
 	// Validate required fields
 	if invitation.InviteeID == "" {
 		http.Error(w, "Missing required field: invitee_id", http.StatusBadRequest)
