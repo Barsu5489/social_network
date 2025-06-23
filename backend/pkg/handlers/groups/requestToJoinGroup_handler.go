@@ -12,6 +12,12 @@ import (
 
 // Request to join group
 func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	groupID := vars["groupId"]
 
@@ -20,6 +26,16 @@ func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Reques
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Validation fields
+	if request.UserID == "" {
+		http.Error(w, "Missing required field: user_id", http.StatusBadRequest)
+		return
+	}
+	if request.UserID != userID {
+		http.Error(w, "User ID mismatch with authenticated user", http.StatusForbidden)
 		return
 	}
 
