@@ -65,3 +65,13 @@ type GroupMember struct {
 	Role     string `json:"role"`
 	JoinedAt int64  `json:"joined_at"`
 }
+
+type Invitation struct {
+	ID         string `json:"id"`
+	InviterID  string `json:"inviter_id"`
+	InviteeID  string `json:"invitee_id"`
+	EntityType string `json:"entity_type"`
+	EntityID   string `json:"entity_id"`
+	Status     string `json:"status"`
+	CreatedAt  int64  `json:"created_at"`
+}
