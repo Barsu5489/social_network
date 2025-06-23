@@ -57,3 +57,11 @@ type Group struct {
 	CreatedAt   int64  `json:"created_at"`
 	UpdatedAt   int64  `json:"updated_at"`
 }
+
+type GroupMember struct {
+	ID       string `json:"id"`
+	GroupID  string `json:"group_id"`
+	UserID   string `json:"user_id"`
+	Role     string `json:"role"`
+	JoinedAt int64  `json:"joined_at"`
+}
