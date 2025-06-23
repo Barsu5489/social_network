@@ -25,6 +25,16 @@ func (gh *GroupHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if group.Name == "" {
+		http.Error(w, "Missing required field: name", http.StatusBadRequest)
+		return
+	}
+	if group.Description == "" {
+		http.Error(w, "Missing required field: description", http.StatusBadRequest)
+		return
+	}
+
 	group.ID = uuid.New().String()
 	group.CreatedAt = time.Now().Unix()
 	group.UpdatedAt = time.Now().Unix()
