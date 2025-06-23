@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	
+
 	"social-nework/pkg/auth"
 	"social-nework/pkg/db/sqlite"
 	"social-nework/pkg/handlers"
@@ -52,7 +52,7 @@ func main() {
 	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
 	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
 	router.HandleFunc("/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
-  
+
 	// Comment routes
 	router.HandleFunc("/comment/{post_id}", auth.RequireAuth(handlers.NewComment(db))).Methods("POST")
 	router.HandleFunc("/comments/{post_id}", auth.RequireAuth(handlers.GetPostComments(db))).Methods("GET")
@@ -102,20 +102,21 @@ func main() {
 	log.Println("Server starting on :3000...")
 	if err := http.ListenAndServe(":3000", router); err != nil {
 
-	// ---- CORS MIDDLEWARE ----
-	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-	})
-	// Log after router is attached
-	log.Println("Server starting on :8080...")
+		// ---- CORS MIDDLEWARE ----
+		corsHandler := cors.New(cors.Options{
+			AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
+		})
+		// Log after router is attached
+		log.Println("Server starting on :8080...")
 
-	// Wrap the router with CORS middleware
-	handler := corsHandler.Handler(router)
+		// Wrap the router with CORS middleware
+		handler := corsHandler.Handler(router)
 
-	if err := http.ListenAndServe(":8080", handler); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		if err := http.ListenAndServe(":8080", handler); err != nil {
+			log.Fatalf("Failed to start server: %v", err)
+		}
 	}
 }
