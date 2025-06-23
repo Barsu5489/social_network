@@ -96,3 +96,20 @@ type EventAttendee struct {
 	Status    string `json:"status"` // going, maybe, not_going
 	CreatedAt int64  `json:"created_at"`
 }
+// Comment represents a comment on a post
+type Comment struct {
+    ID        string  `json:"id"`
+    PostID    string  `json:"post_id"`
+    UserID    string  `json:"user_id"`
+    Content   string  `json:"content"`
+    ImageURL  *string `json:"image_url,omitempty"`
+    CreatedAt int64   `json:"created_at"`
+    UpdatedAt int64   `json:"updated_at"`
+    DeletedAt *int64  `json:"deleted_at,omitempty"`
+    
+    // Additional fields for API responses
+    UserNickname string `json:"user_nickname,omitempty"`
+    UserAvatar   string `json:"user_avatar,omitempty"`
+    LikesCount   int    `json:"likes_count"`
+    UserLiked    bool   `json:"user_liked,omitempty"`
+}
