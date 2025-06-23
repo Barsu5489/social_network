@@ -47,3 +47,13 @@ type Like struct {
 	CreatedAt    int64     `json:"created_at"`
 	DeletedAt    *int64    `json:"deleted_at,omitempty"`
 }
+
+type Group struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CreatorID   string `json:"creator_id"`
+	IsPrivate   bool   `json:"is_private"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
