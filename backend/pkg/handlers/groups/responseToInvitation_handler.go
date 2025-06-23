@@ -12,8 +12,18 @@ import (
 
 // Accept/Decline group invitation
 func (gh *GroupHandler) RespondToInvitation(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	invitationID := vars["id"]
+	if invitationID == "" {
+		http.Error(w, "Missing invitation ID", http.StatusBadRequest)
+		return
+	}
 
 	var response struct {
 		Status string `json:"status"` // accepted or declined
