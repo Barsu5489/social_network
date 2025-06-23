@@ -57,32 +57,32 @@ func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableI
 	if err != nil {
 		return nil, err
 	}
-		// Create notification for the content owner if it's a post like
-		if likeableType == "post" {
-			// Get post owner
-			var postOwnerID string
-			postOwnerStmt := `SELECT user_id FROM posts WHERE id = ?`
-			err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
-			if err == nil && postOwnerID != userID {
-				// Don't notify for self-likes
-				notificationID := uuid.New().String()
-				notifyStmt := `
+	// Create notification for the content owner if it's a post like
+	if likeableType == "post" {
+		// Get post owner
+		var postOwnerID string
+		postOwnerStmt := `SELECT user_id FROM posts WHERE id = ?`
+		err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
+		if err == nil && postOwnerID != userID {
+			// Don't notify for self-likes
+			notificationID := uuid.New().String()
+			notifyStmt := `
 					INSERT INTO notifications (id, user_id, type, reference_id, is_read, created_at)
 					VALUES (?, ?, ?, ?, ?, ?)
 				`
-				db.ExecContext(ctx, notifyStmt, notificationID, postOwnerID, "new_like", id, false, now)
-			}
+			db.ExecContext(ctx, notifyStmt, notificationID, postOwnerID, "new_like", id, false, now)
 		}
-	
-		return &Like{
-			ID:           id,
-			UserID:       userID,
-			LikeableType: likeableType,
-			LikeableID:   likeableID,
-			CreatedAt:    now,
-			DeletedAt:    nil,
-		}, nil
 	}
+
+	return &Like{
+		ID:           id,
+		UserID:       userID,
+		LikeableType: likeableType,
+		LikeableID:   likeableID,
+		CreatedAt:    now,
+		DeletedAt:    nil,
+	}, nil
+}
 
 // UnlikeContent removes a like from a post or comment
 func UnlikeContent(db *sql.DB, ctx context.Context, userID, likeableType, likeableID string) error {
@@ -91,24 +91,24 @@ func UnlikeContent(db *sql.DB, ctx context.Context, userID, likeableType, likeab
 	}
 
 	now := time.Now().Unix()
-	
+
 	// Soft delete the like by setting deleted_at
 	stmt := `
 		UPDATE likes 
 		SET deleted_at = ? 
 		WHERE user_id = ? AND likeable_type = ? AND likeable_id = ? AND deleted_at IS NULL
 	`
-	
+
 	result, err := db.ExecContext(ctx, stmt, now, userID, likeableType, likeableID)
 	if err != nil {
 		return err
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return errors.New("like not found or already removed")
 	}
-	
+
 	return nil
 }
 
@@ -120,32 +120,33 @@ func GetPostLikes(db *sql.DB, ctx context.Context, postID string) ([]Like, error
         WHERE likeable_type = 'post' AND likeable_id = ? AND deleted_at IS NULL
         ORDER BY created_at DESC
 	`
-	
+
 	rows, err := db.QueryContext(ctx, stmt, postID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var likes []Like
 	for rows.Next() {
 		var like Like
-		like.LikeableType = "post" 
-		
+		like.LikeableType = "post"
+
 		err := rows.Scan(&like.ID, &like.UserID, &like.LikeableID, &like.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		likes = append(likes, like)
 	}
-	
+
 	if likes == nil {
 		return []Like{}, nil
 	}
-	
+
 	return likes, nil
 }
+
 // HasUserLikedPost checks if a user has liked a specific post
 func HasUserLikedPost(db *sql.DB, ctx context.Context, userID, postID string) (bool, error) {
 	stmt := `
@@ -153,18 +154,18 @@ func HasUserLikedPost(db *sql.DB, ctx context.Context, userID, postID string) (b
 		WHERE user_id = ? AND likeable_type = 'post' AND likeable_id = ? AND deleted_at IS NULL
 		LIMIT 1
 	`
-	
+
 	var exists int
 	err := db.QueryRowContext(ctx, stmt, userID, postID).Scan(&exists)
-	
+
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	return true, nil
 }
 
@@ -178,12 +179,12 @@ func GetLikeCount(db *sql.DB, ctx context.Context, likeableType, likeableID stri
 		SELECT COUNT(*) FROM likes 
 		WHERE likeable_type = ? AND likeable_id = ? AND deleted_at IS NULL
 	`
-	
+
 	var count int
 	err := db.QueryRowContext(ctx, stmt, likeableType, likeableID).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return count, nil
 }

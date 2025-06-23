@@ -71,10 +71,10 @@ func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 	notificationID := uuid.New().String()
 	_, err = gh.db.Exec(notificationQuery, notificationID, invitation.InviteeID,
 		"group_invite", invitation.ID, time.Now().Unix())
-		if err != nil {
-			http.Error(w, "Failed to create notification for group invitation", http.StatusInternalServerError)
-			return
-		}
+	if err != nil {
+		http.Error(w, "Failed to create notification for group invitation", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(invitation)

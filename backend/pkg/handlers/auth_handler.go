@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"social-nework/pkg/models"
 	"github.com/google/uuid"
 	"social-nework/pkg/auth"
+	"social-nework/pkg/models"
 )
 
 type UserModel interface {
@@ -115,28 +115,29 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"email":      user.Email,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
-			},
+		},
 	})
 }
+
 // Logout terminates a user's session
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
-    
-    // Clear the session
-    if err := auth.ClearSession(w, r); err != nil {
-        log.Println("Logout error:", err)
-        http.Error(w, "Failed to logout", http.StatusInternalServerError)
-        return
-    }
-    
-    // Return success response
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "success": true,
-        "message": "Logout successful",
-    })
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Clear the session
+	if err := auth.ClearSession(w, r); err != nil {
+		log.Println("Logout error:", err)
+		http.Error(w, "Failed to logout", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Logout successful",
+	})
 }

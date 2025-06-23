@@ -20,7 +20,7 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Check if user is member of the group
 	memberQuery := `SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND deleted_at IS NULL`
 	var memberExists string

@@ -49,7 +49,7 @@ func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Create invitation from user to themselves (request)
-	invitation := models.Invitation {
+	invitation := models.Invitation{
 		ID:         uuid.New().String(),
 		InviterID:  request.UserID,
 		InviteeID:  request.UserID,
@@ -75,10 +75,10 @@ func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Reques
 	notificationID := uuid.New().String()
 	_, err = gh.db.Exec(notificationQuery, notificationID, creatorID,
 		"group_invite", invitation.ID, time.Now().Unix())
-		if err != nil {
-			http.Error(w, "Failed to send notification", http.StatusInternalServerError)
-			return
-		}
+	if err != nil {
+		http.Error(w, "Failed to send notification", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(invitation)
