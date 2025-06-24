@@ -3,8 +3,8 @@
 </script>
 
 <svelte:head>
-  <title>Skiep - Social Media</title>
-  <meta name="description" content="A modern social media platform" />
+  <title>ConnectSphere - Social Network</title>
+  <meta name="description" content="Connect, Share, Belong - A modern social network platform" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </svelte:head>
 
