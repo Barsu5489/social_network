@@ -1,6 +1,9 @@
 <script>
-  import AuthPanel from '$lib/components/AuthPanel.svelte';
+  import RegisterForm from "$lib/components/RegisterForm.svelte";
 </script>
 
-<AuthPanel />
+<svelte:head>
+  <title>Sign Up - ConnectSphere</title>
+</svelte:head>
 
+<RegisterForm />

@@ -32,15 +32,6 @@ func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	user.ID = uuid.New().String()
 
-	// Hash the password
-	hashedPassword, err := auth.HashPassword(user.PasswordHash)
-	if err != nil {
-		log.Println("Password hashing error:", err)
-		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-		return
-	}
-	user.PasswordHash = hashedPassword
-
 	if err := a.UserModel.Insert(user); err != nil {
 		log.Println("Insert error:", err)
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
