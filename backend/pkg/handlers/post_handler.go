@@ -63,34 +63,35 @@ func FollowingPosts(db *sql.DB) http.HandlerFunc {
 
 		// Encode posts as JSON
 		json.NewEncoder(w).Encode(posts)
-	}	
+	}
 }
+
 // Get all posts
 func AllPosts(db *sql.DB) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodGet {
-            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-            return
-        }
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
-        // Get the authenticated user ID from context
-        userID, ok := r.Context().Value("user_id").(string)
-        if !ok {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
-            return
-        }
+		// Get the authenticated user ID from context
+		userID, ok := r.Context().Value("user_id").(string)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 
-        // Get all posts
-        posts, err := models.GetAllPosts(db, userID)
-        if err != nil {
-            http.Error(w, "Error getting posts", http.StatusInternalServerError)
-            return
-        }
+		// Get all posts
+		posts, err := models.GetAllPosts(db, userID)
+		if err != nil {
+			http.Error(w, "Error getting posts", http.StatusInternalServerError)
+			return
+		}
 
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusOK)
-        json.NewEncoder(w).Encode(posts)
-    }
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(posts)
+	}
 }
 
 func DeletPost(db *sql.DB) http.HandlerFunc {
@@ -100,8 +101,7 @@ func DeletPost(db *sql.DB) http.HandlerFunc {
 		postID := vars["post_id"]
 
 		err := models.DeletePost(db, postID, userID)
-	
-		
+
 		if err != nil {
 			http.Error(w, "Error deleting post: "+err.Error(), http.StatusInternalServerError)
 			return

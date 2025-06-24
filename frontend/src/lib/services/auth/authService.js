@@ -3,15 +3,28 @@ import { writable } from 'svelte/store';
 export const user = writable(null);
 export const isAuthenticated = writable(false);
 
-const API_URL = '/api';
+const API_URL = 'http://localhost:8080/api';
 
-export async function register(userData) {
+export async function register({ firstName, lastName, email, password }) {
   const response = await fetch(`${API_URL}/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(userData)
+    body: JSON.stringify({
+      FirstName: firstName,
+      LastName: lastName,
+      Email: email,
+      PasswordHash: password,
+      Nickname: "",
+      DateOfBirth: "",
+      AboutMe: "",
+      AvatarURL: "",
+      IsPrivate: false,
+      CreatedAt: 0,
+      UpdatedAt: 0,
+      DeletedAt: null,
+    })
   });
 
   if (!response.ok) {
@@ -21,13 +34,13 @@ export async function register(userData) {
   return response.json();
 }
 
-export async function login(credentials) {
+export async function login({ email, password }) {
   const response = await fetch(`${API_URL}/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(credentials)
+    body: JSON.stringify({ email, password })
   });
 
   if (!response.ok) {
