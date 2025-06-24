@@ -1,5 +1,9 @@
 <script>
-  import RegisterPanel from '$lib/components/RegisterPanel.svelte';
+  import RegisterForm from "$lib/components/RegisterForm.svelte";
 </script>
 
-<RegisterPanel />
+<svelte:head>
+  <title>Sign Up - ConnectSphere</title>
+</svelte:head>
+
+<RegisterForm />
