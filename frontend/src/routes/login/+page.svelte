@@ -1,5 +1,9 @@
 <script>
-  import AuthPanel from '$lib/components/AuthPanel.svelte';
+  import LoginForm from '$lib/components/LoginForm.svelte';
 </script>
 
-<AuthPanel />
+<svelte:head>
+  <title>Login - ConnectSphere</title>
+</svelte:head>
+
+<LoginForm />
