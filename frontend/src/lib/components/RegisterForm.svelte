@@ -1,5 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
+  import { register } from '$lib/services/auth/authService';
   
   let formData = {
     username: "",
@@ -51,24 +52,11 @@
     error = "";
 
     try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Registration successful, redirect to login
-        goto('/login?registered=true');
-      } else {
-        const errorText = await response.text();
-        error = errorText || 'Registration failed';
-      }
+      await register(formData);
+      // Registration successful, redirect to login
+      goto('/login?registered=true');
     } catch (err) {
-      error = 'Network error. Please try again.';
+      error = err.message || 'Registration failed. Please try again.';
     } finally {
       isLoading = false;
     }
