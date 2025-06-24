@@ -50,6 +50,6 @@ func NewDB(dataSourceName string) (*sql.DB, error) {
 		rows.Scan(&table)
 		log.Println("Found table:", table)
 	}
-	log.Println("Server on: ", "http://localhost:8080/")
+
 	return db, nil
 }
