@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type User struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
@@ -120,4 +122,29 @@ type Comment struct {
 	UserAvatar   string `json:"user_avatar,omitempty"`
 	LikesCount   int    `json:"likes_count"`
 	UserLiked    bool   `json:"user_liked,omitempty"`
+}
+type Chat struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"` // "direct" or "group"
+	CreatedAt time.Time `json:"created_at"`
+	DeletedAt time.Time `json:"deleted_at,omitempty"`
+}
+
+type Message struct {
+	ID        string    `json:"id"`
+	ChatID    string    `json:"chat_id"`
+	SenderID  string    `json:"sender_id"`
+	Sender    User      `json:"sender,omitempty"`
+	Content   string    `json:"content"`
+	SentAt    time.Time `json:"sent_at"`
+	ReadAt    time.Time `json:"read_at,omitempty"`
+}
+
+
+type ChatParticipant struct {
+	ID        string    `json:"id"`
+	ChatID    string    `json:"chat_id"`
+	UserID    string    `json:"user_id"`
+	JoinedAt  time.Time `json:"joined_at"`
+	DeletedAt time.Time `json:"deleted_at,omitempty"`
 }
