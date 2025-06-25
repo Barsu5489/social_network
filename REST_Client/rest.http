@@ -1,0 +1,44 @@
+### --- IMPORTANT!!! ---
+### Install REST Client by Huachao Mao to test the api server
+
+### Register a new user
+POST http://localhost:4000/api/register
+Content-Type: application/json
+
+{
+  "email": "jane.doe@example.com",
+  "password": "StrongP@ssw0rd!",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "nickname": "jdoe",
+  "date_of_birth": "1995-04-23",
+  "about_me": "Hi! I'm Jane, a backend developer from Nairobi.",
+  "avatar_url": "https://example.com/images/jane.jpg",
+  "is_private": false
+}
+
+### Login with registered credentials
+POST http://localhost:4000/api/login
+Content-Type: application/json
+
+{
+  "email": "jane.doe@example.com",
+  "password": "StrongP@ssw0rd!"
+}
+
+@session = social-network-session=MTc1MDg3OTg2M3xEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQWtBQjNWelpYSmZhV1FHYzNSeWFXNW5EQ1lBSkRFeFptRTVNak13TFdRME9HWXROR05pTUMwNVptUXdMV1E0TlRoak4ySTVPV000WmdaemRISnBibWNNRHdBTllYVjBhR1Z1ZEdsallYUmxaQVJpYjI5c0FnSUFBUVp6ZEhKcGJtY01EQUFLYzJWemMybHZibDlwWkFaemRISnBibWNNSmdBa056azJZMkl5WmpjdE1tRXdNUzAwTXprd0xUbGpNR1V0TkRRMll6UXhZbUkzWXpVd3z9dDnoQK7j3L8gDmt80z3YrBu6b6bNq_eyTErNYnyShg==
+
+### Create a new post
+POST http://localhost:4000/post
+Content-Type: application/json
+Cookie: {{session}}
+
+{
+  "content": "This is a private post visible only to selected users.",
+  "privacy": "private",
+  "group_id": null,
+  "allowed_user_ids": [
+    "user-id-1",
+    "user-id-2"
+  ]
+}
