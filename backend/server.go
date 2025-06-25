@@ -71,11 +71,6 @@ func main() {
 	// Optional: To get liked posts by currently logged-in user
 	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
-
-	// Start server
-	http.ListenAndServe(":3000", router)
-
-
 	// Start server with router
 	log.Println("Server starting on :3000...")
 	if err := http.ListenAndServe(":3000", router); err != nil {
