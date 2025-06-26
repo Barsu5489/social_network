@@ -61,6 +61,10 @@ func main() {
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
 
+	// Notification routes
+	router.HandleFunc("/api/notifications", auth.RequireAuth(handlers.GetNotifications(db))).Methods("GET")
+	router.HandleFunc("/api/notifications/{id}", auth.RequireAuth(handlers.MarkNotificationAsRead(db))).Methods("PUT")
+
 	// todo - fix likes models and handlers
 	// Like a post
 	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodPost)
