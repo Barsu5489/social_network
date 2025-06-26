@@ -209,3 +209,98 @@ func (r *ChatRepository) GetChatInfo(chatID string) (*models.Chat, error) {
 	}
 	return &chat, nil
 }
+
+
+// CreateGroupChat creates a chat specifically for a group
+func (r *ChatRepository) CreateGroupChat(groupID, creatorID string) (string, error) {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+
+	chatID := uuid.New().String()
+	now := time.Now()
+
+	// Create the chat
+	_, err = tx.Exec(`
+		INSERT INTO chats (id, type, created_at)
+		VALUES (?, 'group', ?)`,
+		chatID, now)
+	if err != nil {
+		return "", err
+	}
+
+	// Add creator as participant
+	_, err = tx.Exec(`
+		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
+		VALUES (?, ?, ?, ?)`,
+		uuid.New().String(), chatID, creatorID, now)
+	if err != nil {
+		return "", err
+	}
+
+	// Link group to chat
+	_, err = tx.Exec(`
+		INSERT INTO group_chats (group_id, chat_id, created_at)
+		VALUES (?, ?, ?)`,
+		groupID, chatID, now)
+	if err != nil {
+		return "", err
+	}
+
+	err = tx.Commit()
+	return chatID, err
+}
+
+// AddMemberToGroupChat adds a member to group chat when they join the group
+func (r *ChatRepository) AddMemberToGroupChat(groupID, userID string) error {
+	// Get the group's chat ID
+	var chatID string
+	err := r.DB.QueryRow(`
+		SELECT chat_id FROM group_chats 
+		WHERE group_id = ?`, groupID).Scan(&chatID)
+	if err != nil {
+		return err
+	}
+
+	// Add user to chat
+	return r.AddParticipant(chatID, userID)
+}
+
+// RemoveMemberFromGroupChat removes a member from group chat when they leave the group
+func (r *ChatRepository) RemoveMemberFromGroupChat(groupID, userID string) error {
+	// Get the group's chat ID
+	var chatID string
+	err := r.DB.QueryRow(`
+		SELECT chat_id FROM group_chats 
+		WHERE group_id = ?`, groupID).Scan(&chatID)
+	if err != nil {
+		return err
+	}
+
+	// Remove user from chat
+	return r.RemoveParticipant(chatID, userID)
+}
+
+// GetGroupChatMembers gets all group members for a group chat
+func (r *ChatRepository) GetGroupChatMembers(groupID string) ([]string, error) {
+	rows, err := r.DB.Query(`
+		SELECT gm.user_id 
+		FROM group_members gm
+		WHERE gm.group_id = ? AND gm.deleted_at IS NULL`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		members = append(members, userID)
+	}
+	return members, nil
+}
