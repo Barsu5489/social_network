@@ -25,12 +25,12 @@
     <!-- Left section -->
     <div class="navbar-left">
       <div class="logo">
-        <span class="logo-icon">f</span>
+        <span class="logo-icon">cs</span>
       </div>
       <div class="search-container">
         <input 
           type="text" 
-          placeholder="Search Facebook" 
+          placeholder="Search ConnectSphere" 
           bind:value={searchQuery}
           on:keydown={(e) => e.key === 'Enter' && handleSearch()}
           class="search-input"
