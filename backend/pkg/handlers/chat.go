@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"social-nework/pkg/auth"
 	"social-nework/pkg/models"
 	"social-nework/pkg/repository"
 	"social-nework/pkg/websocket"
@@ -379,6 +380,7 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		"chats": enhancedChats,
 	})
 }
+
 // AddParticipant adds a user to a group chat
 func (h *ChatHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
@@ -429,7 +431,6 @@ func (h *ChatHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
 		"message": "Participant added successfully",
 	})
 }
-
 
 // GetChatMessages returns paginated messages for a specific chat
 func (h *ChatHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
@@ -491,6 +492,7 @@ func (h *ChatHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 		"has_more": len(messages) == limit,
 	})
 }
+
 // GetGroupChatForGroup returns the chat ID for a specific group (helper method)
 func (h *ChatHandler) GetGroupChatForGroup(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
@@ -554,4 +556,23 @@ func (h *ChatHandler) GetGroupChatForGroup(w http.ResponseWriter, r *http.Reques
 		"participants": participants,
 		"type":         "group",
 	})
+}
+
+// RegisterChatRoutes registers all chat-related routes
+func RegisterChatRoutes(router *mux.Router, handler *ChatHandler) {
+	chatRouter := router.PathPrefix("/api/chats").Subrouter()
+
+	// Chat management - all protected with auth middleware
+	chatRouter.HandleFunc("", auth.RequireAuth(handler.GetUserChats)).Methods("GET")
+	chatRouter.HandleFunc("/direct", auth.RequireAuth(handler.CreateDirectChat)).Methods("POST")
+	chatRouter.HandleFunc("/group", auth.RequireAuth(handler.CreateGroupChat)).Methods("POST")
+
+	// Message management - also protected
+	chatRouter.HandleFunc("/{chatId}/messages", auth.RequireAuth(handler.GetChatMessages)).Methods("GET")
+	chatRouter.HandleFunc("/{chatId}/messages", auth.RequireAuth(handler.SendMessage)).Methods("POST")
+	chatRouter.HandleFunc("/{chatId}/participants", auth.RequireAuth(handler.AddParticipant)).Methods("POST")
+
+	// Group chat helper route
+	groupRouter := router.PathPrefix("/api/groups").Subrouter()
+	groupRouter.HandleFunc("/{groupId}/chat", auth.RequireAuth(handler.GetGroupChatForGroup)).Methods("GET")
 }
