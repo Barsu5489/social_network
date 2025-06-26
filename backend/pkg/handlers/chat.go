@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"social-nework/pkg/models"
@@ -179,7 +180,6 @@ func (h *ChatHandler) CreateDirectChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-
 
 // CreateGroupChat creates a group chat (legacy method, consider using group creation instead)
 func (h *ChatHandler) CreateGroupChat(w http.ResponseWriter, r *http.Request) {
@@ -379,6 +379,57 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		"chats": enhancedChats,
 	})
 }
+// AddParticipant adds a user to a group chat
+func (h *ChatHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	vars := mux.Vars(r)
+	chatID := vars["chatId"]
+
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Verify requester is in chat
+	isInChat, err := h.chatRepo.IsUserInChat(chatID, userID)
+	if err != nil || !isInChat {
+		http.Error(w, "Access denied", http.StatusForbidden)
+		return
+	}
+
+	// Add participant
+	if err := h.chatRepo.AddParticipant(chatID, req.UserID); err != nil {
+		log.Printf("Error adding participant: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Add to active chat room if exists
+	h.hub.AddUserToChatRoom(chatID, req.UserID)
+
+	// Notify other participants
+	notification := websocket.MessagePayload{
+		Type:   "participant_added",
+		ChatID: chatID,
+		Data: map[string]interface{}{
+			"user_id":   req.UserID,
+			"added_by":  userID,
+			"timestamp": time.Now(),
+		},
+	}
+	h.hub.BroadcastToChatRoom(chatID, notification, "")
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Participant added successfully",
+	})
+}
+
 
 // GetChatMessages returns paginated messages for a specific chat
 func (h *ChatHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
