@@ -304,3 +304,28 @@ func (r *ChatRepository) GetGroupChatMembers(groupID string) ([]string, error) {
 	}
 	return members, nil
 }
+
+// GetDirectChatBetweenUsers finds existing direct chat between two users
+func (r *ChatRepository) GetDirectChatBetweenUsers(user1, user2 string) (string, error) {
+	var chatID string
+	err := r.DB.QueryRow(`
+		SELECT cp1.chat_id
+		FROM chat_participants cp1
+		JOIN chat_participants cp2 ON cp1.chat_id = cp2.chat_id
+		JOIN chats c ON cp1.chat_id = c.id
+		WHERE cp1.user_id = ? AND cp2.user_id = ?
+		AND c.type = 'direct' AND c.deleted_at IS NULL
+		AND cp1.deleted_at IS NULL AND cp2.deleted_at IS NULL`,
+		user1, user2).Scan(&chatID)
+	return chatID, err
+}
+
+// SoftDeleteChat marks a chat as deleted
+func (r *ChatRepository) SoftDeleteChat(chatID string) error {
+	_, err := r.DB.Exec(`
+		UPDATE chats 
+		SET deleted_at = ? 
+		WHERE id = ? AND deleted_at IS NULL`,
+		time.Now(), chatID)
+	return err
+}
