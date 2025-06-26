@@ -95,3 +95,24 @@
 		}
 	}
 
+	func (h *Hub) validateChatParticipation(chatID, userID string) bool {
+		// Check in-memory first
+		if chat, ok := h.ChatRooms[chatID]; ok {
+			_, exists := chat.Members[userID]
+			return exists
+		}
+
+		// Fallback to database check
+		var exists bool
+		err := h.db.QueryRow(`
+			SELECT EXISTS(
+				SELECT 1 FROM chat_participants 
+				WHERE chat_id = ? AND user_id = ? AND deleted_at IS NULL
+			)`, chatID, userID).Scan(&exists)
+		if err != nil {
+			log.Printf("Error validating chat participation: %v", err)
+			return false
+		}
+
+		return exists
+	}
