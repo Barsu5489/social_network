@@ -19,7 +19,6 @@ import (
 )
 
 func setupChatSystem(db *sql.DB, router *mux.Router) (*websocket.Hub, *repository.ChatRepository, *repository.GroupRepository) {
-	fmt.Println("dcds")
 	// Initialize repositories
 	chatRepo := &repository.ChatRepository{DB: db}
 	messageRepo := &repository.MessageRepository{DB: db}
@@ -144,17 +143,6 @@ func main() {
 	handler := corsHandler.Handler(router)
 
 	// Start server
-	log.Println("Server starting on :3000...")
-	log.Println("Chat routes registered:")
-	log.Println("  GET  /api/chats - Get user chats")
-	log.Println("  POST /api/chats/direct - Create direct chat")
-	log.Println("  POST /api/chats/group - Create group chat")
-	log.Println("  GET  /api/chats/{chatId}/messages - Get chat messages")
-	log.Println("  POST /api/chats/{chatId}/messages - Send message")
-	log.Println("  POST /api/chats/{chatId}/participants - Add participant")
-	log.Println("  GET  /api/groups/{groupId}/chat - Get group chat")
-	log.Println("  GET  /ws - WebSocket endpoint")
-
 	if err := http.ListenAndServe(":3000", handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
