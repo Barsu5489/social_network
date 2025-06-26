@@ -95,9 +95,7 @@ func main() {
 	// Optional: To get liked posts by currently logged-in user
 	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
-<<<<<<< feature/post-creation-privacy
 	// Start server with router
-=======
 	// ---- CORS MIDDLEWARE ----
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
@@ -110,7 +108,6 @@ func main() {
 	handler := corsHandler.Handler(router)
 
 	// Start server
->>>>>>> main
 	log.Println("Server starting on :3000...")
 	if err := http.ListenAndServe(":3000", handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
