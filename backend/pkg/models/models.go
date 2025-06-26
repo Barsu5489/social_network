@@ -37,6 +37,11 @@ type Post struct {
 	DeletedAt  *int64 `json:"deleted_at"` // Nullable
 	LikesCount int    `json:"likes_count"`
 	UserLiked  bool   `json:"user_liked,omitempty"`
+<<<<<<< feature/post-creation-privacy
+	
+	AllowedUserIDs []string `json:"allowed_user_ids,omitempty"`
+=======
+>>>>>>> main
 }
 
 // Like represents a like on a post or comment
@@ -49,6 +54,11 @@ type Like struct {
 	DeletedAt    *int64 `json:"deleted_at,omitempty"`
 }
 
+<<<<<<< feature/post-creation-privacy
+type AllowedUserIDs struct {
+	PostID string `json:"post_id"`
+	UserID string `json:"user_id"`
+=======
 type Group struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -114,4 +124,5 @@ type Comment struct {
 	UserAvatar   string `json:"user_avatar,omitempty"`
 	LikesCount   int    `json:"likes_count"`
 	UserLiked    bool   `json:"user_liked,omitempty"`
+>>>>>>> main
 }

@@ -1,0 +1,1 @@
+DROP TABLE post_allowed_users;

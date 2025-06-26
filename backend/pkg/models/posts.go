@@ -10,29 +10,68 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string) (string, error) {
+func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string, allowedUserIDs []string) (string, error) {
 	if content == "" {
 		return "", errors.New("content cannot be empty")
 	}
-	if privacy != "public" && privacy != "almost_private" && privacy != "private" {
+
+	// Validate privacy setting
+	isValidPrivacy := false
+	switch privacy {
+	case "public", "almost_private", "private":
+		isValidPrivacy = true
+	}
+	if !isValidPrivacy {
 		return "", errors.New("invalid privacy setting")
 	}
-	id := uuid.New().String()
+
+	// If privacy is private, the allowed users list must not be empty
+	if privacy == "private" && len(allowedUserIDs) == 0 {
+		return "", errors.New("private posts must specify at least one allowed user")
+	}
+
+	// --- Start Transaction ---
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	// Defer a rollback in case anything fails. It will be ignored if we commit.
+	defer tx.Rollback()
+
+	postID := uuid.New().String()
 	now := time.Now().Unix()
 
-	stm := `INSERT INTO posts (id, user_id, group_id, content, privacy, created_at, updated_at)
-	VALUES(?,?,?,?,?,?,?)
-	`
-	result, err := db.ExecContext(ctx, stm, id, userID, groupID, content, privacy, now, now)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return "", errors.New("post insert failed")
-	}
-	return id, nil
+	// --- 1. Insert into posts table ---
+	postStm := `INSERT INTO posts (id, user_id, group_id, content, privacy, created_at, updated_at)
+                VALUES(?,?,?,?,?,?,?)`
+	_, err = tx.ExecContext(ctx, postStm, postID, userID, groupID, content, privacy, now, now)
+    if err != nil {
+        return "", fmt.Errorf("failed to insert post: %w", err)
+    }
+	
+	// --- 2. If the post is private, insert into post_allowed_users ---
+    if privacy == "private" {
+        allowedUsersStm, err := tx.PrepareContext(ctx, `INSERT INTO post_allowed_users (post_id, user_id) VALUES (?, ?)`)
+        if err != nil {
+            return "", fmt.Errorf("failed to prepare statement for allowed users: %w", err)
+        }
+        defer allowedUsersStm.Close()
+
+        for _, allowedID := range allowedUserIDs {
+            // It's good practice to ensure the creator doesn't need to add themselves, 
+            // but for explicit control, we'll allow whatever is passed.
+            if _, err := allowedUsersStm.ExecContext(ctx, postID, allowedID); err != nil {
+                return "", fmt.Errorf("failed to insert allowed user %s: %w", allowedID, err)
+            }
+        }
+    }
+
+    // --- Commit Transaction ---
+    if err := tx.Commit(); err != nil {
+        return "", fmt.Errorf("failed to commit transaction: %w", err)
+    }
+	
+	return postID, nil
 }
 
 // GetFeed retrieves posts from users the given user follows
