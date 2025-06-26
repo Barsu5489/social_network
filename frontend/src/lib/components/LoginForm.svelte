@@ -19,7 +19,7 @@
     try {
       await login({ email, password });
       // Handle successful login - redirect to profile
-      goto('/profile');
+      goto('/layout');
     } catch (err) {
       error = err.message || 'Login failed. Please try again.';
     } finally {
