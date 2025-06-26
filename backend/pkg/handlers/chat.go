@@ -179,3 +179,203 @@ func (h *ChatHandler) CreateDirectChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+
+// CreateGroupChat creates a group chat (legacy method, consider using group creation instead)
+func (h *ChatHandler) CreateGroupChat(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+
+	var req struct {
+		Name           string   `json:"name"`
+		Description    string   `json:"description,omitempty"`
+		ParticipantIDs []string `json:"participant_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "Group name is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.ParticipantIDs) == 0 {
+		http.Error(w, "At least one participant is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create group chat
+	chat, err := h.chatRepo.CreateChat("group", userID)
+	if err != nil {
+		log.Printf("Error creating group chat: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Add participants
+	allParticipants := []string{userID}
+	for _, participantID := range req.ParticipantIDs {
+		if participantID != userID {
+			if err := h.chatRepo.AddParticipant(chat.ID, participantID); err != nil {
+				log.Printf("Error adding participant %s: %v", participantID, err)
+				continue
+			}
+			allParticipants = append(allParticipants, participantID)
+		}
+	}
+
+	// Initialize chat room in hub
+	h.hub.InitializeChatRoom(chat.ID, "group", allParticipants)
+
+	response := map[string]interface{}{
+		"chat_id":      chat.ID,
+		"type":         "group",
+		"name":         req.Name,
+		"description":  req.Description,
+		"participants": allParticipants,
+		"created_at":   chat.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetUserChats returns all chats for the authenticated user (both direct and group)
+func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+
+	// Get direct chats
+	directChats, err := h.chatRepo.GetUserChats(userID)
+	if err != nil {
+		log.Printf("Error getting user chats: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var enhancedChats []map[string]interface{}
+
+	// Process direct chats
+	for _, chat := range directChats {
+		if chat.Type == "direct" {
+			participants, err := h.chatRepo.GetChatParticipants(chat.ID)
+			if err != nil {
+				log.Printf("Error getting chat participants: %v", err)
+				continue
+			}
+
+			// Get participant details (excluding current user for display name)
+			var otherParticipant models.User
+			for _, participantID := range participants {
+				if participantID != userID {
+					err = h.chatRepo.DB.QueryRow(`
+						SELECT first_name, last_name, avatar_url 
+						FROM users WHERE id = ?`, participantID).Scan(
+						&otherParticipant.FirstName, &otherParticipant.LastName, &otherParticipant.AvatarURL)
+					if err != nil {
+						log.Printf("Error getting participant info: %v", err)
+					}
+					break
+				}
+			}
+
+			// Get last message
+			messages, err := h.messageRepo.GetChatMessages(chat.ID, time.Time{}, 1)
+			var lastMessage *models.Message
+			if err == nil && len(messages) > 0 {
+				lastMessage = &messages[0]
+			}
+
+			enhancedChat := map[string]interface{}{
+				"id":           chat.ID,
+				"type":         chat.Type,
+				"created_at":   chat.CreatedAt,
+				"name":         otherParticipant.FirstName + " " + otherParticipant.LastName,
+				"avatar_url":   otherParticipant.AvatarURL,
+				"participants": participants,
+			}
+
+			if lastMessage != nil {
+				enhancedChat["last_message"] = map[string]interface{}{
+					"content":   lastMessage.Content,
+					"sender_id": lastMessage.SenderID,
+					"sent_at":   lastMessage.SentAt,
+					"sender":    lastMessage.Sender,
+				}
+			}
+
+			enhancedChats = append(enhancedChats, enhancedChat)
+		}
+	}
+
+	// Get group chats
+	rows, err := h.chatRepo.DB.Query(`
+		SELECT c.id, c.type, c.created_at, g.id, g.name, g.description
+		FROM chats c
+		JOIN group_chats gc ON c.id = gc.chat_id
+		JOIN groups g ON gc.group_id = g.id
+		JOIN group_members gm ON g.id = gm.group_id
+		WHERE gm.user_id = ? AND c.type = 'group' 
+		AND c.deleted_at IS NULL AND gm.deleted_at IS NULL
+		ORDER BY c.created_at DESC`, userID)
+	if err != nil {
+		log.Printf("Error getting group chats: %v", err)
+	} else {
+		defer rows.Close()
+
+		for rows.Next() {
+			var chatID, chatType, groupID, groupName, groupDescription string
+			var createdAt time.Time
+
+			if err := rows.Scan(&chatID, &chatType, &createdAt, &groupID, &groupName, &groupDescription); err != nil {
+				log.Printf("Error scanning group chat: %v", err)
+				continue
+			}
+
+			// Get participants
+			participants, err := h.chatRepo.GetChatParticipants(chatID)
+			if err != nil {
+				log.Printf("Error getting chat participants: %v", err)
+				continue
+			}
+
+			// Get last message
+			messages, err := h.messageRepo.GetChatMessages(chatID, time.Time{}, 1)
+			var lastMessage *models.Message
+			if err == nil && len(messages) > 0 {
+				lastMessage = &messages[0]
+			}
+
+			groupChat := map[string]interface{}{
+				"id":          chatID,
+				"type":        chatType,
+				"created_at":  createdAt,
+				"name":        groupName,
+				"description": groupDescription,
+				"group": map[string]interface{}{
+					"id":          groupID,
+					"name":        groupName,
+					"description": groupDescription,
+				},
+				"participants": participants,
+			}
+
+			if lastMessage != nil {
+				groupChat["last_message"] = map[string]interface{}{
+					"content":   lastMessage.Content,
+					"sender_id": lastMessage.SenderID,
+					"sent_at":   lastMessage.SentAt,
+					"sender":    lastMessage.Sender,
+				}
+			}
+
+			enhancedChats = append(enhancedChats, groupChat)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"chats": enhancedChats,
+	})
+}
