@@ -82,14 +82,105 @@ func (h *Hub) Run() {
 	}
 }
 
-// pkg/websocket/hub_extensions.go - Add these methods to your existing Hub struct
-
 // InitializeChatRoom creates or updates a chat room with participants
+func (h *Hub) InitializeChatRoom(chatID, chatType string, participantIDs []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
+	// Create or get chat room
+	chatRoom, exists := h.ChatRooms[chatID]
+	if !exists {
+		chatRoom = &ChatRoom{
+			ID:        chatID,
+			Type:      chatType,
+			Members:   make(map[string]*Client),
+			CreatedAt: time.Now(),
+		}
+		h.ChatRooms[chatID] = chatRoom
+	}
 
+	// Add connected participants to the room
+	for _, userID := range participantIDs {
+		if client, ok := h.Clients[userID]; ok {
+			chatRoom.Members[userID] = client
 
+			// Update client's chat list
+			client.mu.Lock()
+			client.Chats[chatID] = true
+			client.mu.Unlock()
+		}
+	}
+}
 
+// AddUserToChatRoom adds a user to an existing chat room
+func (h *Hub) AddUserToChatRoom(chatID, userID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
+	chatRoom, exists := h.ChatRooms[chatID]
+	if !exists {
+		return
+	}
+
+	// Add user if they're connected
+	if client, ok := h.Clients[userID]; ok {
+		chatRoom.Members[userID] = client
+
+		// Update client's chat list
+		client.mu.Lock()
+		client.Chats[chatID] = true
+		client.mu.Unlock()
+	}
+}
+
+// RemoveUserFromChatRoom removes a user from a chat room
+func (h *Hub) RemoveUserFromChatRoom(chatID, userID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	chatRoom, exists := h.ChatRooms[chatID]
+	if !exists {
+		return
+	}
+
+	delete(chatRoom.Members, userID)
+
+	// Update client's chat list if they're connected
+	if client, ok := h.Clients[userID]; ok {
+		client.mu.Lock()
+		delete(client.Chats, chatID)
+		client.mu.Unlock()
+	}
+
+	// Clean up empty chat room
+	if len(chatRoom.Members) == 0 {
+		delete(h.ChatRooms, chatID)
+	}
+}
+
+// BroadcastToChatRoom sends a message to all members of a chat room except the sender
+func (h *Hub) BroadcastToChatRoom(chatID string, message MessagePayload, excludeUserID string) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	chatRoom, exists := h.ChatRooms[chatID]
+	if !exists {
+		log.Printf("Chat room %s not found for broadcast", chatID)
+		return
+	}
+
+	for userID, client := range chatRoom.Members {
+		if userID == excludeUserID {
+			continue
+		}
+
+		select {
+		case client.Send <- message:
+		default:
+			log.Printf("Client %s send buffer full during broadcast", userID)
+		}
+	}
+}
 
 // Complete the initializeUserChatRooms method that was stubbed
 func (h *Hub) initializeUserChatRooms(client *Client) {
@@ -134,6 +225,64 @@ func (h *Hub) initializeUserChatRooms(client *Client) {
 					chatRoom.Members[participantID] = otherClient
 				}
 			}
+		}
+	}
+}
+
+// GetChatRoomInfo returns information about a chat room
+func (h *Hub) GetChatRoomInfo(chatID string) (*ChatRoom, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	chatRoom, exists := h.ChatRooms[chatID]
+	return chatRoom, exists
+}
+
+// GetConnectedUsers returns a list of connected user IDs
+func (h *Hub) GetConnectedUsers() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	users := make([]string, 0, len(h.Clients))
+	for userID := range h.Clients {
+		users = append(users, userID)
+	}
+	return users
+}
+
+// IsUserOnline checks if a user is currently connected
+func (h *Hub) IsUserOnline(userID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	_, exists := h.Clients[userID]
+	return exists
+}
+
+// SendDirectMessage sends a message directly to a specific user
+func (h *Hub) SendDirectMessage(userID string, message MessagePayload) bool {
+	h.mu.RLock()
+	client, exists := h.Clients[userID]
+	h.mu.RUnlock()
+
+	if !exists {
+		return false
+	}
+
+	select {
+	case client.Send <- message:
+		return true
+	default:
+		log.Printf("Client %s send buffer full for direct message", userID)
+		return false
+	}
+}
+
+func (h *Hub) cleanupDisconnectedClient(client *Client) {
+	for _, chatRoom := range h.ChatRooms {
+		delete(chatRoom.Members, client.UserID)
+		if len(chatRoom.Members) == 0 {
+			delete(h.ChatRooms, chatRoom.ID)
 		}
 	}
 }
