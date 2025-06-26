@@ -25,7 +25,7 @@ func NewDB(dataSourceName string) (*sql.DB, error) {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://pkg/db/migrations/sqlite", 
+		"file://pkg/db/migrations/sqlite",
 		"sqlite3", driver,
 	)
 	if err != nil {
@@ -50,6 +50,6 @@ func NewDB(dataSourceName string) (*sql.DB, error) {
 		rows.Scan(&table)
 		log.Println("Found table:", table)
 	}
-	log.Println("Server on: ","http://localhost:3000/")
+
 	return db, nil
 }

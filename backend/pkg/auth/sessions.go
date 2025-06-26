@@ -23,7 +23,7 @@ func init() {
 		Path:     "/",
 		MaxAge:   SessionMaxAge,
 		HttpOnly: true,
-		Secure:   false, 
+		Secure:   false,
 		SameSite: http.SameSiteStrictMode,
 	}
 }

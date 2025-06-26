@@ -7,11 +7,11 @@ import (
 
 type SuccessResponse struct {
 	Success bool `json:"success"`
-	Data interface{}
+	Data    interface{}
 }
 type ErrorResponse struct {
 	Error string `json:"failed"`
-	Data string
+	Data  string
 }
 
 // Convert a boolean to SQLite integer (1 for true, 0 for false)
@@ -34,9 +34,8 @@ func SendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(ErrorResponse{
-		
-		Error:   message,
 
+		Error: message,
 	})
 }
 
@@ -46,6 +45,6 @@ func SendSuccess(w http.ResponseWriter, data interface{}) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(SuccessResponse{
 		Success: true,
-		Data: data,
+		Data:    data,
 	})
 }

@@ -36,3 +36,4 @@ yarn-error.log*
 
 # Miscellaneous markdowns
 README-*.md
+*.yaml

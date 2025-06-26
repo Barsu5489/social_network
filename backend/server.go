@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"social-nework/pkg/auth"
 	"social-nework/pkg/db/sqlite"
 	"social-nework/pkg/handlers"
+	"social-nework/pkg/handlers/groups"
 	"social-nework/pkg/models"
 )
 
@@ -24,6 +26,7 @@ func main() {
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
 	// postModel := &models.PostModel{DB: db}
+	groupHandler := groups.NewGroupHandler(db)
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
@@ -50,14 +53,17 @@ func main() {
 	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
 	router.HandleFunc("/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
 
+	// Comment routes
+	router.HandleFunc("/comment/{post_id}", auth.RequireAuth(handlers.NewComment(db))).Methods("POST")
+	router.HandleFunc("/comments/{post_id}", auth.RequireAuth(handlers.GetPostComments(db))).Methods("GET")
 
 	// User Profile routes
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
 
-// todo - fix likes models and handlers
+	// todo - fix likes models and handlers
 	// Like a post
-	router.HandleFunc("/posts/{post_id}/like",auth.RequireAuth( handlers.LikePost(db))).Methods(http.MethodPost)
+	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodPost)
 
 	// Unlike a post
 	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodDelete)
@@ -68,12 +74,45 @@ func main() {
 	// Get posts liked by a user
 	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
+	// Group Management Routes
+	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.CreateGroup)).Methods("POST")
+	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.GetAllGroups)).Methods("GET")
+
+	// Group Invitation Routes
+	router.HandleFunc("/api/groups/invite", auth.RequireAuth(groupHandler.InviteToGroup)).Methods("POST")
+	router.HandleFunc("/api/groups/join/{groupId}", auth.RequireAuth(groupHandler.RequestToJoinGroup)).Methods("POST")
+	router.HandleFunc("/api/invitations/{id}/respond", auth.RequireAuth(groupHandler.RespondToInvitation)).Methods("PUT")
+
+	// Group Content Routes
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.CreateGroupPost)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.GetGroupPosts)).Methods("GET")
+
+	// Group Event Routes
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.CreateEvent)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.GetGroupEvents)).Methods("GET")
+	router.HandleFunc("/api/events/{eventId}/rsvp", auth.RequireAuth(groupHandler.RSVPEvent)).Methods("POST")
+
 	// Optional: To get liked posts by currently logged-in user
 	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
+<<<<<<< feature/post-creation-privacy
 	// Start server with router
+=======
+	// ---- CORS MIDDLEWARE ----
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	// Wrap the router with CORS middleware
+	handler := corsHandler.Handler(router)
+
+	// Start server
+>>>>>>> main
 	log.Println("Server starting on :3000...")
-	if err := http.ListenAndServe(":3000", router); err != nil {
+	if err := http.ListenAndServe(":3000", handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

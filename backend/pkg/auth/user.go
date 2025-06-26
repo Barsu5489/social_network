@@ -99,9 +99,9 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 	}
 
 	// Verify password
-fmt.Println(password, passwordHash)
+	fmt.Println(password, passwordHash)
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	err = CheckPassword(password, passwordHash)
 	if err != nil {
 		log.Printf("Password comparison failed: %v", err)
 		return nil, errors.New("invalid credentials")
