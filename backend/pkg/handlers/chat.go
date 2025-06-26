@@ -12,3 +12,12 @@ type ChatHandler struct {
 	groupRepo   *repository.GroupRepository // Add this for group chat integration
 	hub         *websocket.Hub
 }
+
+func NewChatHandler(chatRepo *repository.ChatRepository, messageRepo *repository.MessageRepository, groupRepo *repository.GroupRepository, hub *websocket.Hub) *ChatHandler {
+	return &ChatHandler{
+		chatRepo:    chatRepo,
+		messageRepo: messageRepo,
+		groupRepo:   groupRepo,
+		hub:         hub,
+	}
+}
