@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-
+	
 
 	"github.com/gorilla/websocket"
 )
@@ -25,7 +25,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Configure properly for production
+		return true // Allow all origins for simplicity; adjust as needed
 	},
 }
 
@@ -45,7 +45,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-// Get user's existing chats
+	// Fetch user chat IDs from the repository
 	chatIDs, err := hub.chatRepo.GetUserChatIDs(userID)
 	if err != nil {
 		log.Printf("Failed to get user chats: %v", err)
@@ -73,6 +73,64 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	hub.Register <- client
 
+	go client.writePump()
+	go client.readPump()
+}
 
+func (c *Client) readPump() {
+	defer func() {
+		c.Hub.Unregister <- c
+		c.Conn.Close()
+	}()
+
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		var msg MessagePayload
+		err := c.Conn.ReadJSON(&msg)
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket error: %v", err)
+			}
+			break
+		}
+
+		msg.SenderID = c.UserID
+		c.Hub.MessageQueue <- msg
+	}
+}
+
+func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if err := c.Conn.WriteJSON(message); err != nil {
+				log.Println("Write error:", err)
+				return
+			}
+
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
 }
 
