@@ -37,8 +37,14 @@ const (
 
 // pkg/websocket/client.go
 func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	// Get userID from context (set by WebSocketAuth middleware)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		log.Println("WebSocket connection missing user ID")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-	
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -50,12 +56,11 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		Hub:    hub,
 		Conn:   conn,
 		Send:   make(chan MessagePayload, 256),
-		UserID: "temp-id",
+		UserID: userID,
 		Chats:  make(map[string]bool),
 	}
 
 	
-
 	hub.Register <- client
 
 
