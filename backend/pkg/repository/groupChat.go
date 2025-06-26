@@ -226,3 +226,11 @@ func (r *GroupRepository) CreateGroupWithChat(group *models.Group) error {
 	committed = true
 	return nil
 }
+// GetGroupChatID gets the chat ID for a group
+func (r *GroupRepository) GetGroupChatID(groupID string) (string, error) {
+	var chatID string
+	err := r.DB.QueryRow(`
+		SELECT chat_id FROM group_chats 
+		WHERE group_id = ?`, groupID).Scan(&chatID)
+	return chatID, err
+}
