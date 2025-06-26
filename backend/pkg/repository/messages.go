@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"social-nework/pkg/models"
@@ -71,4 +70,84 @@ func (r *MessageRepository) GetChatMessages(chatID string, before time.Time, lim
 	}
 
 	return messages, nil
+}
+
+// CreateDirectChat creates or returns existing direct chat between two users
+func (r *MessageRepository) CreateDirectChat(user1, user2 string) (string, error) {
+	// Check if chat already exists
+	var chatID string
+	err := r.DB.QueryRow(`
+		SELECT cp1.chat_id
+		FROM chat_participants cp1
+		JOIN chat_participants cp2 ON cp1.chat_id = cp2.chat_id
+		JOIN chats c ON cp1.chat_id = c.id
+		WHERE cp1.user_id = ? AND cp2.user_id = ?
+		AND c.type = 'direct' AND c.deleted_at IS NULL
+		AND cp1.deleted_at IS NULL AND cp2.deleted_at IS NULL`,
+		user1, user2).Scan(&chatID)
+
+	if err == nil {
+		return chatID, nil
+	}
+
+	if err != sql.ErrNoRows {
+		return "", err
+	}
+
+	// Create new chat
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+
+	chatID = uuid.New().String()
+
+	_, err = tx.Exec(`
+		INSERT INTO chats (id, type, created_at)
+		VALUES (?, 'direct', ?)`,
+		chatID, time.Now())
+	if err != nil {
+		return "", err
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
+		VALUES (?, ?, ?, ?)`,
+		uuid.New().String(), chatID, user1, time.Now())
+	if err != nil {
+		return "", err
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
+		VALUES (?, ?, ?, ?)`,
+		uuid.New().String(), chatID, user2, time.Now())
+	if err != nil {
+		return "", err
+	}
+
+	return chatID, tx.Commit()
+}
+
+// MarkMessageAsRead marks a message as read by a user
+func (r *MessageRepository) MarkMessageAsRead(messageID, userID string) error {
+	_, err := r.DB.Exec(`
+		UPDATE messages 
+		SET read_at = ? 
+		WHERE id = ? AND read_at IS NULL`,
+		time.Now(), messageID)
+	return err
+}
+
+// GetUnreadMessageCount returns the count of unread messages for a user in a chat
+func (r *MessageRepository) GetUnreadMessageCount(chatID, userID string) (int, error) {
+	var count int
+	err := r.DB.QueryRow(`
+		SELECT COUNT(*) 
+		FROM messages m
+		WHERE m.chat_id = ? AND m.sender_id != ? 
+		AND m.read_at IS NULL AND m.deleted_at IS NULL`,
+		chatID, userID).Scan(&count)
+	return count, err
 }
