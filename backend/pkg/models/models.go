@@ -73,6 +73,7 @@ type GroupMember struct {
 	UserID   string `json:"user_id"`
 	Role     string `json:"role"`
 	JoinedAt int64  `json:"joined_at"`
+	User     User      `json:"user,omitempty"`
 }
 
 type Invitation struct {
