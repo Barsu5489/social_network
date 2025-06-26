@@ -491,3 +491,67 @@ func (h *ChatHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 		"has_more": len(messages) == limit,
 	})
 }
+// GetGroupChatForGroup returns the chat ID for a specific group (helper method)
+func (h *ChatHandler) GetGroupChatForGroup(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	vars := mux.Vars(r)
+	groupID := vars["groupId"]
+
+	if groupID == "" {
+		http.Error(w, "Group ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Verify user is member of group
+	isMember, err := h.groupRepo.IsUserMember(groupID, userID)
+	if err != nil {
+		log.Printf("Error checking group membership: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !isMember {
+		http.Error(w, "Access denied", http.StatusForbidden)
+		return
+	}
+
+	// Get group chat ID
+	chatID, err := h.groupRepo.GetGroupChatID(groupID)
+	if err != nil {
+		log.Printf("Error getting group chat ID: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Get group info
+	var groupName, groupDescription string
+	err = h.chatRepo.DB.QueryRow(`
+		SELECT name, description FROM groups WHERE id = ?`, groupID).Scan(&groupName, &groupDescription)
+	if err != nil {
+		log.Printf("Error getting group info: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Get participants
+	participants, err := h.chatRepo.GetChatParticipants(chatID)
+	if err != nil {
+		log.Printf("Error getting chat participants: %v", err)
+		participants = []string{} // Return empty array on error
+	}
+
+	// Initialize chat room in hub if needed
+	h.hub.InitializeChatRoom(chatID, "group", participants)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"chat_id": chatID,
+		"group": map[string]interface{}{
+			"id":          groupID,
+			"name":        groupName,
+			"description": groupDescription,
+		},
+		"participants": participants,
+		"type":         "group",
+	})
+}
