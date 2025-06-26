@@ -111,3 +111,101 @@ func (r *ChatRepository) GetChatParticipants(chatID string) ([]string, error) {
 	}
 	return participants, nil
 }
+
+// GetChatParticipantsWithDetails retrieves participants with their user details
+func (r *ChatRepository) GetChatParticipantsWithDetails(chatID string) ([]models.User, error) {
+	rows, err := r.DB.Query(`
+		SELECT u.id, u.first_name, u.last_name, u.email, u.avatar_url
+		FROM chat_participants cp
+		JOIN users u ON cp.user_id = u.id
+		WHERE cp.chat_id = ? AND cp.deleted_at IS NULL
+		ORDER BY u.first_name, u.last_name`, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var participants []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID, &user.FirstName, &user.LastName,
+			&user.Email, &user.AvatarURL,
+		)
+		if err != nil {
+			return nil, err
+		}
+		participants = append(participants, user)
+	}
+	return participants, nil
+}
+
+// GetUserChats retrieves all chats for a user
+func (r *ChatRepository) GetUserChats(userID string) ([]models.Chat, error) {
+	rows, err := r.DB.Query(`
+		SELECT c.id, c.type, c.created_at
+		FROM chats c
+		JOIN chat_participants cp ON c.id = cp.chat_id
+		WHERE cp.user_id = ? AND c.deleted_at IS NULL AND cp.deleted_at IS NULL
+		ORDER BY c.created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []models.Chat
+	for rows.Next() {
+		var chat models.Chat
+		if err := rows.Scan(&chat.ID, &chat.Type, &chat.CreatedAt); err != nil {
+			return nil, err
+		}
+		chats = append(chats, chat)
+	}
+	return chats, nil
+}
+
+// GetUserChatIDs retrieves all chat IDs for a user
+func (r *ChatRepository) GetUserChatIDs(userID string) ([]string, error) {
+	rows, err := r.DB.Query(`
+		SELECT chat_id FROM chat_participants
+		WHERE user_id = ? AND deleted_at IS NULL`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chatIDs []string
+	for rows.Next() {
+		var chatID string
+		if err := rows.Scan(&chatID); err != nil {
+			return nil, err
+		}
+		chatIDs = append(chatIDs, chatID)
+	}
+	return chatIDs, nil
+}
+
+// IsUserInChat checks if a user is a participant in a chat
+func (r *ChatRepository) IsUserInChat(chatID, userID string) (bool, error) {
+	var exists bool
+	err := r.DB.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM chat_participants
+			WHERE chat_id = ? AND user_id = ? AND deleted_at IS NULL
+		)`, chatID, userID).Scan(&exists)
+	return exists, err
+}
+
+// GetChatInfo retrieves basic chat information
+func (r *ChatRepository) GetChatInfo(chatID string) (*models.Chat, error) {
+	var chat models.Chat
+	err := r.DB.QueryRow(`
+		SELECT id, type, created_at
+		FROM chats
+		WHERE id = ? AND deleted_at IS NULL`, chatID).Scan(
+		&chat.ID, &chat.Type, &chat.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &chat, nil
+}
