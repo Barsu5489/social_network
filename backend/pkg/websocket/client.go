@@ -1,13 +1,14 @@
 package websocket
 
 import (
-
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
-	
+	"social-nework/pkg/auth"
 
 	"github.com/gorilla/websocket"
 )
@@ -134,3 +135,21 @@ func (c *Client) writePump() {
 	}
 }
 
+func WebSocketAuth(hub *Hub, next http.HandlerFunc) http.HandlerFunc {
+	fmt.Println("websocket")
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Reuse existing session authentication
+		userID, err := auth.GetUserIDFromSession(r)
+		if err != nil {
+			log.Printf("WebSocket auth failed: %v", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}else{
+			fmt.Print("Connecting user: ", userID)
+		}
+
+		// Add userID to context just like RequireAuth does
+		ctx := context.WithValue(r.Context(), "user_id", userID)
+		next(w, r.WithContext(ctx))
+	}
+}
