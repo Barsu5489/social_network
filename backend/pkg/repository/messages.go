@@ -188,3 +188,43 @@ func (r *MessageRepository) GetLastMessageForChat(chatID string) (*models.Messag
 
 	return &messages[0], nil
 }
+
+// SearchMessages searches for messages containing the query text
+func (r *MessageRepository) SearchMessages(chatID, query string, limit int) ([]models.Message, error) {
+	rows, err := r.DB.Query(`
+		SELECT m.id, m.chat_id, m.sender_id, m.content, m.sent_at, m.read_at,
+			   u.first_name, u.last_name, u.avatar_url
+		FROM messages m
+		JOIN users u ON m.sender_id = u.id
+		WHERE m.chat_id = ? AND m.content LIKE ? AND m.deleted_at IS NULL
+		ORDER BY m.sent_at DESC LIMIT ?`,
+		chatID, "%"+query+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []models.Message
+	for rows.Next() {
+		var msg models.Message
+		var sender models.User
+		var readAt sql.NullTime
+
+		err := rows.Scan(
+			&msg.ID, &msg.ChatID, &msg.SenderID, &msg.Content, &msg.SentAt, &readAt,
+			&sender.FirstName, &sender.LastName, &sender.AvatarURL,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		msg.Sender = sender
+		if readAt.Valid {
+			msg.ReadAt = readAt.Time
+		}
+
+		messages = append(messages, msg)
+	}
+
+	return messages, nil
+}
