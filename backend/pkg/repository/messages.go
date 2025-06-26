@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"social-nework/pkg/models"
@@ -150,4 +151,40 @@ func (r *MessageRepository) GetUnreadMessageCount(chatID, userID string) (int, e
 		AND m.read_at IS NULL AND m.deleted_at IS NULL`,
 		chatID, userID).Scan(&count)
 	return count, err
+}
+
+// DeleteMessage soft deletes a message
+func (r *MessageRepository) DeleteMessage(messageID, userID string) error {
+	// Check if user is the sender
+	var senderID string
+	err := r.DB.QueryRow(`
+		SELECT sender_id FROM messages WHERE id = ?`, messageID).Scan(&senderID)
+	if err != nil {
+		return err
+	}
+
+	if senderID != userID {
+		return fmt.Errorf("unauthorized: user is not the sender of this message")
+	}
+
+	_, err = r.DB.Exec(`
+		UPDATE messages 
+		SET deleted_at = ? 
+		WHERE id = ?`,
+		time.Now(), messageID)
+	return err
+}
+
+// GetLastMessageForChat returns the last message in a chat
+func (r *MessageRepository) GetLastMessageForChat(chatID string) (*models.Message, error) {
+	messages, err := r.GetChatMessages(chatID, time.Time{}, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(messages) == 0 {
+		return nil, nil
+	}
+
+	return &messages[0], nil
 }
