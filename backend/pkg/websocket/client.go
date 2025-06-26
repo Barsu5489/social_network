@@ -45,6 +45,13 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+// Get user's existing chats
+	chatIDs, err := hub.chatRepo.GetUserChatIDs(userID)
+	if err != nil {
+		log.Printf("Failed to get user chats: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -60,7 +67,10 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		Chats:  make(map[string]bool),
 	}
 
-	
+	for _, chatID := range chatIDs {
+		client.Chats[chatID] = true
+	}
+
 	hub.Register <- client
 
 
