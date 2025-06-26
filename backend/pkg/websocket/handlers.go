@@ -57,3 +57,41 @@
 			}
 		}
 	}
+
+	func (h *Hub) handleHistoryRequest(msg MessagePayload) {
+		// Validate chat participation
+		if !h.validateChatParticipation(msg.ChatID, msg.SenderID) {
+			return
+		}
+
+		var before time.Time
+		if data, ok := msg.Data.(map[string]interface{}); ok {
+			if ts, ok := data["before"].(string); ok {
+				before, _ = time.Parse(time.RFC3339, ts)
+			}
+		}
+
+		messages, err := h.messageRepo.GetChatMessages(msg.ChatID, before, 50)
+		if err != nil {
+			log.Printf("Error getting chat history: %v", err)
+			return
+		}
+
+		client, ok := h.Clients[msg.SenderID]
+		if !ok {
+			return
+		}
+
+		response := MessagePayload{
+			Type:   "history_response",
+			ChatID: msg.ChatID,
+			Data:   messages,
+		}
+
+		select {
+		case client.Send <- response:
+		default:
+			log.Printf("Client %s send buffer full", msg.SenderID)
+		}
+	}
+
