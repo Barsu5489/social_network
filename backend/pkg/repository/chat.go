@@ -329,3 +329,36 @@ func (r *ChatRepository) SoftDeleteChat(chatID string) error {
 		time.Now(), chatID)
 	return err
 }
+
+
+
+// GetChatType returns the type of a chat
+func (r *ChatRepository) GetChatType(chatID string) (string, error) {
+	var chatType string
+	err := r.DB.QueryRow(`
+		SELECT type FROM chats 
+		WHERE id = ? AND deleted_at IS NULL`, chatID).Scan(&chatType)
+	return chatType, err
+}
+
+// UpdateChatLastActivity updates the last activity timestamp for ordering
+func (r *ChatRepository) UpdateChatLastActivity(chatID string) error {
+	_, err := r.DB.Exec(`
+		UPDATE chats 
+		SET updated_at = ? 
+		WHERE id = ?`,
+		time.Now(), chatID)
+	return err
+}
+
+// GetChatCount returns the number of chats a user is in
+func (r *ChatRepository) GetChatCount(userID string) (int, error) {
+	var count int
+	err := r.DB.QueryRow(`
+		SELECT COUNT(DISTINCT cp.chat_id)
+		FROM chat_participants cp
+		JOIN chats c ON cp.chat_id = c.id
+		WHERE cp.user_id = ? AND cp.deleted_at IS NULL AND c.deleted_at IS NULL`,
+		userID).Scan(&count)
+	return count, err
+}
