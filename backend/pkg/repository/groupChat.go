@@ -131,3 +131,98 @@ func (r *GroupRepository) GetUserGroups(userID string) ([]models.Group, error) {
 	}
 	return groups, nil
 }
+
+
+// CreateGroupWithChat creates a group and its associated chat in a single transaction
+func (r *GroupRepository) CreateGroupWithChat(group *models.Group) error {
+	
+	// Check if repository is properly initialized
+	if r == nil {
+		return fmt.Errorf("GroupRepository is nil")
+	}
+	if r.DB == nil {
+		return fmt.Errorf("Database connection is nil")
+	}
+	if group == nil {
+		return fmt.Errorf("Group model is nil")
+	}
+
+	// Start transaction
+	tx, err := r.DB.Begin()
+	if err != nil {
+		fmt.Println("error starting transaction:", err)
+		return err
+	}
+
+	// Use a flag to track if we should rollback
+	committed := false
+	defer func() {
+		if !committed {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				fmt.Printf("error rolling back transaction: %v\n", rbErr)
+			}
+		}
+	}()
+
+	// Create the group
+	_, err = tx.Exec(`
+		INSERT INTO groups (id, name, description, creator_id, is_private, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		group.ID, group.Name, group.Description, group.CreatorID, group.IsPrivate,
+		group.CreatedAt, group.UpdatedAt)
+	if err != nil {
+		fmt.Printf("error creating group: %v\n", err)
+		return err
+	}
+
+	// Add creator as admin member
+	_, err = tx.Exec(`
+		INSERT INTO group_members (id, group_id, user_id, role, joined_at)
+		VALUES (?, ?, ?, 'admin', ?)`,
+		uuid.New().String(), group.ID, group.CreatorID, time.Now())
+	if err != nil {
+		fmt.Printf("error adding creator as admin: %v\n", err)
+		return err
+	}
+
+	// Create group chat using the same transaction
+	chatID := uuid.New().String()
+	_, err = tx.Exec(`
+		INSERT INTO chats (id, type, created_at)
+		VALUES (?, 'group', ?)`,
+		chatID, time.Now())
+	if err != nil {
+		fmt.Printf("error creating group chat: %v\n", err)
+		return err
+	}
+
+	// Add creator as chat participant
+	_, err = tx.Exec(`
+		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
+		VALUES (?, ?, ?, ?)`,
+		uuid.New().String(), chatID, group.CreatorID, time.Now())
+	if err != nil {
+		fmt.Printf("error adding creator as chat participant: %v\n", err)
+		return err
+	}
+
+	// Link the group to its chat
+	_, err = tx.Exec(`
+		INSERT INTO group_chats (group_id, chat_id, created_at)
+		VALUES (?, ?, ?)`,
+		group.ID, chatID, time.Now())
+	if err != nil {
+		fmt.Printf("error linking group to chat: %v\n", err)
+		return err
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		fmt.Printf("error committing transaction: %v\n", err)
+		return err
+	}
+
+	committed = true
+	return nil
+}
