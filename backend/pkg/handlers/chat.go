@@ -379,3 +379,64 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		"chats": enhancedChats,
 	})
 }
+
+// GetChatMessages returns paginated messages for a specific chat
+func (h *ChatHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id").(string)
+	vars := mux.Vars(r)
+	chatID := vars["chatId"]
+
+	if chatID == "" {
+		http.Error(w, "Chat ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Verify user is in chat
+	isInChat, err := h.chatRepo.IsUserInChat(chatID, userID)
+	if err != nil {
+		log.Printf("Error checking chat membership: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !isInChat {
+		http.Error(w, "Access denied", http.StatusForbidden)
+		return
+	}
+
+	// Parse pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	beforeStr := r.URL.Query().Get("before")
+
+	limit := 50 // default
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+
+	var before time.Time
+	if beforeStr != "" {
+		if parsedTime, err := time.Parse(time.RFC3339, beforeStr); err == nil {
+			before = parsedTime
+		}
+	}
+
+	messages, err := h.messageRepo.GetChatMessages(chatID, before, limit)
+	if err != nil {
+		log.Printf("Error getting chat messages: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Reverse messages to show oldest first
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"messages": messages,
+		"has_more": len(messages) == limit,
+	})
+}
