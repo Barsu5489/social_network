@@ -12,6 +12,12 @@ import (
 
 // RSVP to event
 func (gh *GroupHandler) RSVPEvent(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	eventID := vars["eventId"]
 
@@ -20,6 +26,8 @@ func (gh *GroupHandler) RSVPEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	attendee.UserID = userID
 
 	// Check if user is member of the group that owns the event
 	memberQuery := `SELECT gm.id FROM group_members gm 
