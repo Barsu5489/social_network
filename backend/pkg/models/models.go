@@ -97,14 +97,18 @@ type Event struct {
 	CreatedBy   string `json:"created_by"`
 	CreatedAt   int64  `json:"created_at"`
 	UpdatedAt   int64  `json:"updated_at"`
+	AttendeeCount int64 `json:"attendee_count"`
+	Attendees   []EventAttendee `json:"attendees"`
 }
 
 type EventAttendee struct {
 	ID        string `json:"id"`
 	EventID   string `json:"event_id"`
 	UserID    string `json:"user_id"`
+	UserName string `json:"user_name"`
 	Status    string `json:"status"` // going, maybe, not_going
 	CreatedAt int64  `json:"created_at"`
+	JoinedAt int64  `json:"joined_at"`
 }
 
 // Comment represents a comment on a post
