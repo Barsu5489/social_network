@@ -132,7 +132,7 @@ func main() {
 
 	// CORS MIDDLEWARE
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://127.0.0.1:5500"}, // frontend origin
+		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
