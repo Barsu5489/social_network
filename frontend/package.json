@@ -10,7 +10,8 @@
 		"prepare": "svelte-kit sync || echo ''"
 	},
 	"dependencies": {
-		"svelte-spa-router": "^4.0.1"
+		"svelte-spa-router": "^4.0.1",
+		"wscat": "^6.1.0"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.0.0",

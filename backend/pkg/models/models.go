@@ -37,7 +37,7 @@ type Post struct {
 	DeletedAt  *int64 `json:"deleted_at"` // Nullable
 	LikesCount int    `json:"likes_count"`
 	UserLiked  bool   `json:"user_liked,omitempty"`
-	
+
 	AllowedUserIDs []string `json:"allowed_user_ids,omitempty"`
 }
 
@@ -71,6 +71,7 @@ type GroupMember struct {
 	UserID   string `json:"user_id"`
 	Role     string `json:"role"`
 	JoinedAt int64  `json:"joined_at"`
+	User     User   `json:"user,omitempty"`
 }
 
 type Invitation struct {
@@ -120,4 +121,28 @@ type Comment struct {
 	UserAvatar   string `json:"user_avatar,omitempty"`
 	LikesCount   int    `json:"likes_count"`
 	UserLiked    bool   `json:"user_liked,omitempty"`
+}
+type Chat struct {
+	ID        string `json:"id"`
+	Type      string `json:"type"` // "direct" or "group"
+	CreatedAt int64  `json:"created_at"`
+	DeletedAt *int64 `json:"deleted_at,omitempty"`
+}
+
+type Message struct {
+	ID       string `json:"id"`
+	ChatID   string `json:"chat_id"`
+	SenderID string `json:"sender_id"`
+	Sender   User   `json:"sender,omitempty"`
+	Content  string `json:"content"`
+	SentAt   int64  `json:"sent_at"`
+	ReadAt   *int64 `json:"read_at,omitempty"`
+}
+
+type ChatParticipant struct {
+	ID        string `json:"id"`
+	ChatID    string `json:"chat_id"`
+	UserID    string `json:"user_id"`
+	JoinedAt  int64  `json:"joined_at"`
+	DeletedAt *int64 `json:"deleted_at,omitempty"`
 }
