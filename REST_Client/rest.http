@@ -5,6 +5,57 @@
 ###############################################################################
 
 ###############################################################################
+### TESTING INSTRUCTIONS
+###############################################################################
+
+### 1. SETUP:
+###    - Install REST Client extension by Huachao Mao in VS Code
+###    - Make sure your Go server is running on localhost:3000
+###    - Ensure your database is properly initialized
+
+### 2. AUTHENTICATION FLOW:
+###    - First register users using the registration endpoints
+###    - Login to get session cookies
+###    - Copy the session cookie value and update the @jane_session and @john_session variables
+###    - Session cookies look like: social-network-session=MTc1MDg3OTg2M3w...
+
+### 3. TESTING ORDER:
+###    - Start with authentication endpoints
+###    - Test user profile endpoints
+###    - Create posts and test post endpoints
+###    - Test social features (likes, comments, follows)
+###    - Test group functionality
+###    - Test chat functionality
+
+### 4. REPLACE PLACEHOLDERS:
+###    - Replace USER_ID_HERE with actual user IDs from registration/login responses
+###    - Replace POST_ID_HERE with actual post IDs from post creation responses
+###    - Replace GROUP_ID_HERE with actual group IDs from group creation responses
+###    - Replace CHAT_ID_HERE with actual chat IDs from chat creation responses
+###    - Replace EVENT_ID_HERE with actual event IDs from event creation responses
+###    - Replace INVITATION_ID_HERE with actual invitation IDs
+
+### 5. SESSION MANAGEMENT:
+###    - Sessions expire after some time, re-login if you get 401 Unauthorized
+###    - Each user needs their own session cookie for testing multi-user scenarios
+
+### 6. WEBSOCKET TESTING:
+###    - Use a WebSocket client like wscat or browser dev tools
+###    - Connect to ws://localhost:3000/ws with proper authentication headers
+###    - Test real-time messaging functionality
+
+
+
+### 8. ERROR HANDLING:
+###    - Check server logs for detailed error messages
+###    - Common issues: missing authentication, invalid IDs, database constraints
+
+### 10. PRIVACY SETTINGS:
+###     - Test different privacy levels for posts
+###     - Verify access control for private content
+###     - Test group membership requirements
+
+###############################################################################
 ### AUTHENTICATION ENDPOINTS
 ###############################################################################
 
@@ -50,7 +101,7 @@ Content-Type: application/json
 }
 
 ### Save Jane's session (copy from login response)
-@jane_session =  social-network-session=MTc1MDk5MjYwNnxEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQXdBQ25ObGMzTnBiMjVmYVdRR2MzUnlhVzVuRENZQUpESm1NemcxTkRjekxXSmpORE10TkRGa015MWlaVGszTFRsaE5qRTFaVGs0TTJSbU9RWnpkSEpwYm1jTUNRQUhkWE5sY2w5cFpBWnpkSEpwYm1jTUpnQWtNRE5rTUdGa1lUVXRabUk1WkMwME1qVTFMVGxsTlRVdFlUSTRORFV5WW1KaFlXVm1Cbk4wY21sdVp3d1BBQTFoZFhSb1pXNTBhV05oZEdWa0JHSnZiMndDQWdBQnxJ_cpZ5VLVeCZ6j3e0VdOZ-blO2_hPi8FEUxB4DzX7Gw==
+@jane_session = social-network-session=YOUR_SESSION_COOKIE_HERE
 
 ### Login as John  
 POST http://localhost:3000/api/login
@@ -62,7 +113,7 @@ Content-Type: application/json
 }
 
 ### Save John's session (copy from login response)
-@john_session = social-network-session=MTc1MDk4NjI5M3xEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQXdBQ25ObGMzTnBiMjVmYVdRR2MzUnlhVzVuRENZQUpEZ3lZV1ZsWXpka0xXSXpaREF0TkRNME1pMWhOR1ZoTFdFM1lqQXdaRFJqWW1SbFlnWnpkSEpwYm1jTUNRQUhkWE5sY2w5cFpBWnpkSEpwYm1jTUpnQWtNRFF5Tm1Ga05UUXRNemxtWXkwMFpUQXlMVGhpTnpndE5HVmhNREkwWlRabFlUTm1Cbk4wY21sdVp3d1BBQTFoZFhSb1pXNTBhV05oZEdWa0JHSnZiMndDQWdBQnzJWTjpMpmDAcu4ZeM7qMPKVUgrXvF9-VMOZWhAvpPlIg==
+@john_session = social-network-session=YOUR_SESSION_COOKIE_HERE
 
 ### Logout
 POST http://localhost:3000/api/logout
@@ -101,8 +152,7 @@ Content-Type: application/json
 Cookie: {{jane_session}}
 
 {
-    "content": "This is my first public post! Excited to share my thoughts with everyone 22.",
-    "group_id": "00173e7c-68f3-4cb2-94ac-2d895454f2e5",
+    "content": "This is my first public post! Excited to share my thoughts with everyone.",
     "privacy": "public",
     "image_url": "https://example.com/images/post1.jpg"
 }
@@ -115,8 +165,17 @@ Cookie: {{jane_session}}
 {
     "content": "This is a private post visible only to selected users.",
     "privacy": "private",
-    "allowed_user_ids": ["4a9e13eb-ee28-472d-b19c-575b906b2608"]
-    
+    "allowed_user_ids": ["USER_ID_HERE"]
+}
+
+### Create Friends-Only Post
+POST http://localhost:3000/post
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "This post is only visible to my friends/followers.",
+    "privacy": "friends"
 }
 
 ### Get All Posts
@@ -136,7 +195,7 @@ Cookie: {{jane_session}}
 ###############################################################################
 
 ### Create Comment (replace POST_ID with actual post ID)
-POST http://localhost:3000/comment/4a9e13eb-ee28-472d-b19c-575b906b2608
+POST http://localhost:3000/comment/POST_ID_HERE
 Content-Type: application/json
 Cookie: {{jane_session}}
 
@@ -146,7 +205,7 @@ Cookie: {{jane_session}}
 }
 
 ### Get Post Comments (replace POST_ID with actual post ID)
-GET http://localhost:3000/comments/4a9e13eb-ee28-472d-b19c-575b906b2608
+GET http://localhost:3000/comments/POST_ID_HERE
 Cookie: {{jane_session}}
 
 ###############################################################################
@@ -154,19 +213,19 @@ Cookie: {{jane_session}}
 ###############################################################################
 
 ### Like a Post (replace POST_ID with actual post ID)
-POST http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/like
+POST http://localhost:3000/posts/POST_ID_HERE/like
 Cookie: {{jane_session}}
 
 ### Unlike a Post (replace POST_ID with actual post ID)
-DELETE http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/like
+DELETE http://localhost:3000/posts/POST_ID_HERE/like
 Cookie: {{jane_session}}
 
 ### Get Post Likes (replace POST_ID with actual post ID)
-GET http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/likes
+GET http://localhost:3000/posts/POST_ID_HERE/likes
 Cookie: {{jane_session}}
 
 ### Get User Liked Posts (replace USER_ID with actual user ID)
-GET http://localhost:3000/users/4a9e13eb-ee28-472d-b19c-575b906b2608/likes
+GET http://localhost:3000/users/USER_ID_HERE/likes
 Cookie: {{jane_session}}
 
 ###############################################################################
@@ -174,11 +233,11 @@ Cookie: {{jane_session}}
 ###############################################################################
 
 ### Follow User (replace USER_ID with actual user ID)
-POST http://localhost:3000/follow/4a9e13eb-ee28-472d-b19c-575b906b2608
+POST http://localhost:3000/follow/USER_ID_HERE
 Cookie: {{jane_session}}
-# 0426ad54-39fc-4e02-8b78-4ea024e6ea3f
+
 ### Unfollow User (replace USER_ID with actual user ID)
-DELETE http://localhost:3000/unfollow/4a9e13eb-ee28-472d-b19c-575b906b2608
+DELETE http://localhost:3000/unfollow/USER_ID_HERE
 Cookie: {{jane_session}}
 
 ### Get Followers
@@ -216,23 +275,22 @@ Content-Type: application/json
 Cookie: {{jane_session}}
 
 {
-    "entity_id": "2503c6db-0898-4bdd-ba9d-9163d6f04cdc",
-    "invitee_id": "4a9e13eb-ee28-472d-b19c-575b906b2608",
+    "group_id": "GROUP_ID_HERE",
+    "user_id": "USER_ID_HERE",
     "message": "Hey! Would you like to join our Go developers community?"
 }
 
 ### Request to Join Group (replace GROUP_ID with actual group ID)
-POST http://localhost:3000/api/groups/join/2503c6db-0898-4bdd-ba9d-9163d6f04cdc
+POST http://localhost:3000/api/groups/join/GROUP_ID_HERE
 Content-Type: application/json
-Cookie: {{jane_session}}
+Cookie: {{john_session}}
 
 {
-  "user_id": "4a9e13eb-ee28-472d-b19c-575b906b2608",
     "message": "Hi! I'm interested in joining this group to learn more about Go development."
 }
 
 ### Respond to Invitation (replace INVITATION_ID with actual invitation ID)
-PUT http://localhost:3000/api/invitations/e66930cb-7d22-422c-a8ba-6b6c86635e6d/respond
+PUT http://localhost:3000/api/invitations/INVITATION_ID_HERE/respond
 Content-Type: application/json
 Cookie: {{john_session}}
 
@@ -254,7 +312,7 @@ Cookie: {{john_session}}
 ###############################################################################
 
 ### Create Group Post (replace GROUP_ID with actual group ID)
-POST http://localhost:3000/api/00173e7c-68f3-4cb2-94ac-2d895454f2e5/posts
+POST http://localhost:3000/api/groups/GROUP_ID_HERE/posts
 Content-Type: application/json
 Cookie: {{jane_session}}
 
@@ -264,7 +322,7 @@ Cookie: {{jane_session}}
 }
 
 ### Get Group Posts (replace GROUP_ID with actual group ID)
-GET http://localhost:3000/api/groups/00173e7c-68f3-4cb2-94ac-2d895454f2e5/posts
+GET http://localhost:3000/api/groups/GROUP_ID_HERE/posts
 Cookie: {{jane_session}}
 
 ###############################################################################
@@ -317,15 +375,7 @@ Cookie: {{john_session}}
 ###############################################################################
 ### CHAT ENDPOINTS
 ###############################################################################
-###############################################################################
-### WEBSOCKET CONNECTION (for reference)
-##############################################################################
-?### WebSocket Connection. 
-Run this on terminal to connect to WebSocket server
-### Make sure your server is running and WebSocket endpoint is set up
-### Replace {ENTER_SESSION_COOKIE_HERE} with actual session cookie value
 
-npx wscat -c ws://localhost:3000/ws   -H "Cookie: social-network-session={ENTER_SESSION_COOKIE_HERE}"
 ### Get User's Chats
 GET http://localhost:3000/api/chats
 Cookie: {{jane_session}}
@@ -391,69 +441,13 @@ Cookie: {{jane_session}}
     "user_id": "USER_ID_HERE"
 }
 
-
 ###############################################################################
 ### WEBSOCKET CONNECTION (for reference)
 ###############################################################################
 
 ### WebSocket Connection
-### ws://localhost:3000/ws
+# ### ws://localhost:3000/ws
+# npx wscat -c ws://localhost:3000/ws   -H "Cookie: social-network-session=YOUR_SESSION_COOKIE_HERE"
 ### Note: WebSocket connections require authentication
 ### Include session cookie in WebSocket connection headers
 
-###############################################################################
-### TESTING INSTRUCTIONS
-###############################################################################
-
-### 1. SETUP:
-###    - Install REST Client extension by Huachao Mao in VS Code
-###    - Make sure your Go server is running on localhost:3000
-###    - Ensure your database is properly initialized
-
-### 2. AUTHENTICATION FLOW:
-###    - First register users using the registration endpoints
-###    - Login to get session cookies
-###    - Copy the session cookie value and update the @jane_session and @john_session variables
-###    - Session cookies look like: social-network-session=MTc1MDg3OTg2M3w...
-
-### 3. TESTING ORDER:
-###    - Start with authentication endpoints
-###    - Test user profile endpoints
-###    - Create posts and test post endpoints
-###    - Test social features (likes, comments, follows)
-###    - Test group functionality
-###    - Test chat functionality
-
-### 4. REPLACE PLACEHOLDERS:
-###    - Replace USER_ID_HERE with actual user IDs from registration/login responses
-###    - Replace POST_ID_HERE with actual post IDs from post creation responses
-###    - Replace GROUP_ID_HERE with actual group IDs from group creation responses
-###    - Replace CHAT_ID_HERE with actual chat IDs from chat creation responses
-###    - Replace EVENT_ID_HERE with actual event IDs from event creation responses
-###    - Replace INVITATION_ID_HERE with actual invitation IDs
-
-### 5. SESSION MANAGEMENT:
-###    - Sessions expire after some time, re-login if you get 401 Unauthorized
-###    - Each user needs their own session cookie for testing multi-user scenarios
-
-### 6. WEBSOCKET TESTING:
-###    - Use a WebSocket client like wscat or browser dev tools
-###    - Connect to ws://localhost:3000/ws with proper authentication headers
-###    - Test real-time messaging functionality
-
-### 7. CORS CONFIGURATION:
-###    - Your server is configured for http://127.0.0.1:5500
-###    - If testing from different origin, update CORS settings in main.go
-
-### 8. ERROR HANDLING:
-###    - Check server logs for detailed error messages
-###    - Common issues: missing authentication, invalid IDs, database constraints
-
-### 9. DATABASE STATE:
-###    - Some operations depend on existing data (users, posts, groups)
-###    - Create test data in logical order: users -> posts -> groups -> chats
-
-### 10. PRIVACY SETTINGS:
-###     - Test different privacy levels for posts
-###     - Verify access control for private content
-###     - Test group membership requirements
