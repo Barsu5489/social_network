@@ -3,8 +3,9 @@ package groups
 import (
 	"encoding/json"
 	"net/http"
-	"social-nework/pkg/models"
 	"time"
+
+	"social-nework/pkg/models"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -12,6 +13,12 @@ import (
 
 // Create event
 func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	groupID := vars["groupId"]
 
@@ -20,6 +27,8 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	event.CreatedBy = userID
 
 	// Check if user is member of the group
 	memberQuery := `SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND deleted_at IS NULL`
