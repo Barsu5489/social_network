@@ -78,7 +78,7 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		ChatID:   chatID,
 		SenderID: userID,
 		Content:  req.Content,
-		SentAt:   time.Now(),
+		SentAt:   time.Now().Unix(),
 	}
 
 	// Save message to database

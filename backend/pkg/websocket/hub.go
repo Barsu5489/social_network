@@ -36,7 +36,7 @@ type MessagePayload struct {
 	ChatID    string      `json:"chat_id"`
 	SenderID  string      `json:"sender_id"`
 	Content   string      `json:"content,omitempty"`
-	Timestamp time.Time   `json:"timestamp,omitempty"`
+	Timestamp int64   `json:"timestamp,omitempty"`
 	Data      interface{} `json:"data,omitempty"` // For additional payload
 }
 

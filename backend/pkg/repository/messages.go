@@ -52,7 +52,7 @@ func (r *MessageRepository) GetChatMessages(chatID string, before time.Time, lim
 	for rows.Next() {
 		var msg models.Message
 		var sender models.User
-		var readAt sql.NullTime
+		var readAt sql.NullInt64
 
 		err := rows.Scan(
 			&msg.ID, &msg.ChatID, &msg.SenderID, &msg.Content, &msg.SentAt, &readAt,
@@ -64,7 +64,7 @@ func (r *MessageRepository) GetChatMessages(chatID string, before time.Time, lim
 
 		msg.Sender = sender
 		if readAt.Valid {
-			msg.ReadAt = readAt.Time
+			msg.ReadAt = &readAt.Int64
 		}
 
 		messages = append(messages, msg)
@@ -208,7 +208,7 @@ func (r *MessageRepository) SearchMessages(chatID, query string, limit int) ([]m
 	for rows.Next() {
 		var msg models.Message
 		var sender models.User
-		var readAt sql.NullTime
+		var readAt sql.NullInt64
 
 		err := rows.Scan(
 			&msg.ID, &msg.ChatID, &msg.SenderID, &msg.Content, &msg.SentAt, &readAt,
@@ -220,7 +220,7 @@ func (r *MessageRepository) SearchMessages(chatID, query string, limit int) ([]m
 
 		msg.Sender = sender
 		if readAt.Valid {
-			msg.ReadAt = readAt.Time
+			msg.ReadAt = &readAt.Int64
 		}
 
 		messages = append(messages, msg)

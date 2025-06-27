@@ -17,7 +17,7 @@ type ChatRepository struct {
 // CreateChat creates a new chat (direct or group)
 func (r *ChatRepository) CreateChat(chatType string, creatorID string) (*models.Chat, error) {
 	chatID := uuid.New().String()
-	now := time.Now()
+	now := time.Now().Unix()
 
 	_, err := r.DB.Exec(`
 		INSERT INTO chats (id, type, created_at)

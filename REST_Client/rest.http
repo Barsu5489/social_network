@@ -1,44 +1,450 @@
-### --- IMPORTANT!!! ---
-### Install REST Client by Huachao Mao to test the api server
+###############################################################################
+### SOCIAL NETWORK API TEST SUITE
+### Install REST Client extension by Huachao Mao in VS Code
+### Server should be running on http://localhost:3000 (based on your code)
+###############################################################################
 
-### Register a new user
-POST http://localhost:4000/api/register
+###############################################################################
+### AUTHENTICATION ENDPOINTS
+###############################################################################
+
+### Register User 1 (Jane)
+POST http://localhost:3000/api/register
 Content-Type: application/json
 
 {
-  "email": "jane.doe@example.com",
-  "password": "StrongP@ssw0rd!",
-  "first_name": "Jane",
-  "last_name": "Doe",
-  "nickname": "jdoe",
-  "date_of_birth": "1995-04-23",
-  "about_me": "Hi! I'm Jane, a backend developer from Nairobi.",
-  "avatar_url": "https://example.com/images/jane.jpg",
-  "is_private": false
+    "email": "jane.doe@example.com",
+    "password": "StrongP@ssw0rd!",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "nickname": "jdoe",
+    "date_of_birth": "1995-04-23",
+    "about_me": "Hi! I'm Jane, a backend developer from Nairobi.",
+    "avatar_url": "https://example.com/images/jane.jpg",
+    "is_private": false
 }
 
-### Login with registered credentials
-POST http://localhost:4000/api/login
+### Register User 2 (John)
+POST http://localhost:3000/api/register
 Content-Type: application/json
 
 {
-  "email": "jane.doe@example.com",
-  "password": "StrongP@ssw0rd!"
+    "email": "john.smith@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Smith",
+    "nickname": "jsmith",
+    "date_of_birth": "1992-08-15",
+    "about_me": "Software engineer and tech enthusiast.",
+    "avatar_url": "https://example.com/images/john.jpg",  
+    "is_private": false
 }
 
-@session = social-network-session=MTc1MDg3OTg2M3xEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQWtBQjNWelpYSmZhV1FHYzNSeWFXNW5EQ1lBSkRFeFptRTVNak13TFdRME9HWXROR05pTUMwNVptUXdMV1E0TlRoak4ySTVPV000WmdaemRISnBibWNNRHdBTllYVjBhR1Z1ZEdsallYUmxaQVJpYjI5c0FnSUFBUVp6ZEhKcGJtY01EQUFLYzJWemMybHZibDlwWkFaemRISnBibWNNSmdBa056azJZMkl5WmpjdE1tRXdNUzAwTXprd0xUbGpNR1V0TkRRMll6UXhZbUkzWXpVd3z9dDnoQK7j3L8gDmt80z3YrBu6b6bNq_eyTErNYnyShg==
-
-### Create a new post
-POST http://localhost:4000/post
+### Login as Jane
+POST http://localhost:3000/api/login
 Content-Type: application/json
-Cookie: {{session}}
 
 {
-  "content": "This is a private post visible only to selected users.",
-  "privacy": "private",
-  "group_id": null,
-  "allowed_user_ids": [
-    "user-id-1",
-    "user-id-2"
-  ]
+    "email": "jane.doe@example.com",
+    "password": "StrongP@ssw0rd!"
 }
+
+### Save Jane's session (copy from login response)
+@jane_session =  social-network-session=MTc1MDk5MTYwN3xEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQXdBQ25ObGMzTnBiMjVmYVdRR2MzUnlhVzVuRENZQUpHSm1NV0V3TlRrMUxXWXlOVFl0TkRBellpMWlNelEyTFRjelpXUTJaRGRqWmpsaVlnWnpkSEpwYm1jTUNRQUhkWE5sY2w5cFpBWnpkSEpwYm1jTUpnQWtOR0U1WlRFelpXSXRaV1V5T0MwME56SmtMV0l4T1dNdE5UYzFZamt3Tm1JeU5qQTRCbk4wY21sdVp3d1BBQTFoZFhSb1pXNTBhV05oZEdWa0JHSnZiMndDQWdBQnx80C6u0oHzWBi276Pgr4eRkhyswZJhd-ocTAU7sgRgaQ==
+
+### Login as John  
+POST http://localhost:3000/api/login
+Content-Type: application/json
+
+{
+    "email": "john.smith@example.com", 
+    "password": "SecurePass123!"
+}
+
+### Save John's session (copy from login response)
+@john_session = social-network-session=MTc1MDk4NjI5M3xEWDhFQVFMX2dBQUJFQUVRQUFEX3F2LUFBQU1HYzNSeWFXNW5EQXdBQ25ObGMzTnBiMjVmYVdRR2MzUnlhVzVuRENZQUpEZ3lZV1ZsWXpka0xXSXpaREF0TkRNME1pMWhOR1ZoTFdFM1lqQXdaRFJqWW1SbFlnWnpkSEpwYm1jTUNRQUhkWE5sY2w5cFpBWnpkSEpwYm1jTUpnQWtNRFF5Tm1Ga05UUXRNemxtWXkwMFpUQXlMVGhpTnpndE5HVmhNREkwWlRabFlUTm1Cbk4wY21sdVp3d1BBQTFoZFhSb1pXNTBhV05oZEdWa0JHSnZiMndDQWdBQnzJWTjpMpmDAcu4ZeM7qMPKVUgrXvF9-VMOZWhAvpPlIg==
+
+### Logout
+POST http://localhost:3000/api/logout
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+###############################################################################
+### USER PROFILE ENDPOINTS
+###############################################################################
+
+### Get User Profile
+GET http://localhost:3000/api/profile
+Cookie: {{jane_session}}
+
+### Update User Profile
+PUT http://localhost:3000/api/profile
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "first_name": "Jane Updated",
+    "last_name": "Doe",
+    "nickname": "jane_dev",
+    "about_me": "Updated bio: Senior backend developer specializing in Go and distributed systems.",
+    "avatar_url": "https://example.com/images/jane_updated.jpg",
+    "is_private": false
+}
+
+###############################################################################
+### POST ENDPOINTS
+###############################################################################
+
+### Create Public Post
+POST http://localhost:3000/post
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "This is my first public post! Excited to share my thoughts with everyone 22.",
+    "group_id": "00173e7c-68f3-4cb2-94ac-2d895454f2e5",
+    "privacy": "public",
+    "image_url": "https://example.com/images/post1.jpg"
+}
+
+### Create Private Post
+POST http://localhost:3000/post
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "This is a private post visible only to selected users.",
+    "privacy": "private",
+    "allowed_user_ids": ["4a9e13eb-ee28-472d-b19c-575b906b2608"]
+    
+}
+
+### Get All Posts
+GET http://localhost:3000/posts
+Cookie: {{jane_session}}
+
+### Get Following Posts
+GET http://localhost:3000/followPosts
+Cookie: {{jane_session}}
+
+### Delete Post (replace POST_ID with actual post ID)
+DELETE http://localhost:3000/delPost/POST_ID_HERE
+Cookie: {{jane_session}}
+
+###############################################################################
+### COMMENT ENDPOINTS
+###############################################################################
+
+### Create Comment (replace POST_ID with actual post ID)
+POST http://localhost:3000/comment/4a9e13eb-ee28-472d-b19c-575b906b2608
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "Great post! Thanks for sharing this insight.",
+    "image_url": "https://example.com/images/comment1.jpg"
+}
+
+### Get Post Comments (replace POST_ID with actual post ID)
+GET http://localhost:3000/comments/4a9e13eb-ee28-472d-b19c-575b906b2608
+Cookie: {{jane_session}}
+
+###############################################################################
+### LIKE ENDPOINTS
+###############################################################################
+
+### Like a Post (replace POST_ID with actual post ID)
+POST http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/like
+Cookie: {{jane_session}}
+
+### Unlike a Post (replace POST_ID with actual post ID)
+DELETE http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/like
+Cookie: {{jane_session}}
+
+### Get Post Likes (replace POST_ID with actual post ID)
+GET http://localhost:3000/posts/03a56fb4-e912-480d-a0a1-d11f0180786a/likes
+Cookie: {{jane_session}}
+
+### Get User Liked Posts (replace USER_ID with actual user ID)
+GET http://localhost:3000/users/4a9e13eb-ee28-472d-b19c-575b906b2608/likes
+Cookie: {{jane_session}}
+
+###############################################################################
+### FOLLOW/FRIENDSHIP ENDPOINTS
+###############################################################################
+
+### Follow User (replace USER_ID with actual user ID)
+POST http://localhost:3000/follow/4a9e13eb-ee28-472d-b19c-575b906b2608
+Cookie: {{jane_session}}
+# 0426ad54-39fc-4e02-8b78-4ea024e6ea3f
+### Unfollow User (replace USER_ID with actual user ID)
+DELETE http://localhost:3000/unfollow/4a9e13eb-ee28-472d-b19c-575b906b2608
+Cookie: {{jane_session}}
+
+### Get Followers
+GET http://localhost:3000/followers
+Cookie: {{jane_session}}
+
+### Get Following
+GET http://localhost:3000/following
+Cookie: {{jane_session}}
+
+###############################################################################
+### GROUP MANAGEMENT ENDPOINTS
+###############################################################################
+
+### Create Group
+POST http://localhost:3000/api/groups
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "name": "Go Developers Kenya",
+    "description": "A community for Go developers in Kenya to share knowledge and collaborate.",
+    "category": "technology",
+    "is_private": false,
+    "image_url": "https://example.com/images/go_group.jpg"
+}
+
+### Get All Groups
+GET http://localhost:3000/api/groups
+Cookie: {{jane_session}}
+
+### Invite User to Group
+POST http://localhost:3000/api/groups/invite
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "entity_id": "2503c6db-0898-4bdd-ba9d-9163d6f04cdc",
+    "invitee_id": "4a9e13eb-ee28-472d-b19c-575b906b2608",
+    "message": "Hey! Would you like to join our Go developers community?"
+}
+
+### Request to Join Group (replace GROUP_ID with actual group ID)
+POST http://localhost:3000/api/groups/join/2503c6db-0898-4bdd-ba9d-9163d6f04cdc
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+  "user_id": "4a9e13eb-ee28-472d-b19c-575b906b2608",
+    "message": "Hi! I'm interested in joining this group to learn more about Go development."
+}
+
+### Respond to Invitation (replace INVITATION_ID with actual invitation ID)
+PUT http://localhost:3000/api/invitations/e66930cb-7d22-422c-a8ba-6b6c86635e6d/respond
+Content-Type: application/json
+Cookie: {{john_session}}
+
+{
+    "action": "accept"
+}
+
+### Respond to Invitation - Decline
+PUT http://localhost:3000/api/invitations/INVITATION_ID_HERE/respond
+Content-Type: application/json
+Cookie: {{john_session}}
+
+{
+    "action": "decline"
+}
+
+###############################################################################
+### GROUP CONTENT ENDPOINTS
+###############################################################################
+
+### Create Group Post (replace GROUP_ID with actual group ID)
+POST http://localhost:3000/api/00173e7c-68f3-4cb2-94ac-2d895454f2e5/posts
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "Welcome to our Go developers group! Let's share knowledge and build amazing things together.",
+    "image_url": "https://example.com/images/group_post.jpg"
+}
+
+### Get Group Posts (replace GROUP_ID with actual group ID)
+GET http://localhost:3000/api/groups/00173e7c-68f3-4cb2-94ac-2d895454f2e5/posts
+Cookie: {{jane_session}}
+
+###############################################################################
+### GROUP EVENT ENDPOINTS
+###############################################################################
+
+### Create Group Event (replace GROUP_ID with actual group ID)
+POST http://localhost:3000/api/groups/GROUP_ID_HERE/events
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "title": "Go Workshop: Advanced Concurrency Patterns",
+    "description": "Join us for an in-depth workshop on advanced Go concurrency patterns including channels, goroutines, and sync primitives.",
+    "date": "2025-07-15T14:00:00Z",
+    "location": "Nairobi Tech Hub, Westlands"
+}
+
+### Get Group Events (replace GROUP_ID with actual group ID)
+GET http://localhost:3000/api/groups/GROUP_ID_HERE/events
+Cookie: {{jane_session}}
+
+### RSVP to Event (replace EVENT_ID with actual event ID)
+POST http://localhost:3000/api/events/EVENT_ID_HERE/rsvp
+Content-Type: application/json
+Cookie: {{john_session}}
+
+{
+    "status": "attending"
+}
+
+### RSVP to Event - Not Attending
+POST http://localhost:3000/api/events/EVENT_ID_HERE/rsvp
+Content-Type: application/json
+Cookie: {{john_session}}
+
+{
+    "status": "not_attending"
+}
+
+### RSVP to Event - Maybe
+POST http://localhost:3000/api/events/EVENT_ID_HERE/rsvp
+Content-Type: application/json
+Cookie: {{john_session}}
+
+{
+    "status": "maybe"
+}
+
+###############################################################################
+### CHAT ENDPOINTS
+###############################################################################
+
+### Get User's Chats
+GET http://localhost:3000/api/chats
+Cookie: {{jane_session}}
+
+### Create Direct Chat
+POST http://localhost:3000/api/chats/direct
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "recipient_id": "USER_ID_HERE"
+}
+
+### Create Group Chat (Legacy - consider using group creation instead)
+POST http://localhost:3000/api/chats/group
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "name": "Project Discussion",
+    "description": "Chat for our current project",
+    "participant_ids": ["USER_ID_1", "USER_ID_2"]
+}
+
+### Get Group Chat for Group (replace GROUP_ID with actual group ID)
+GET http://localhost:3000/api/groups/GROUP_ID_HERE/chat
+Cookie: {{jane_session}}
+
+### Send Message to Chat (replace CHAT_ID with actual chat ID)
+POST http://localhost:3000/api/chats/CHAT_ID_HERE/messages
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "Hello everyone! How's the project going?",
+    "type": "text"
+}
+
+### Send Image Message (replace CHAT_ID with actual chat ID)
+POST http://localhost:3000/api/chats/CHAT_ID_HERE/messages
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "content": "https://example.com/images/screenshot.jpg",
+    "type": "image"
+}
+
+### Get Chat Messages (replace CHAT_ID with actual chat ID)
+GET http://localhost:3000/api/chats/CHAT_ID_HERE/messages?limit=20
+Cookie: {{jane_session}}
+
+### Get Chat Messages with Pagination (replace CHAT_ID with actual chat ID)
+GET http://localhost:3000/api/chats/CHAT_ID_HERE/messages?limit=10&before=2025-06-27T10:00:00Z
+Cookie: {{jane_session}}
+
+### Add Participant to Chat (replace CHAT_ID with actual chat ID)
+POST http://localhost:3000/api/chats/CHAT_ID_HERE/participants
+Content-Type: application/json
+Cookie: {{jane_session}}
+
+{
+    "user_id": "USER_ID_HERE"
+}
+
+###############################################################################
+### WEBSOCKET CONNECTION (for reference)
+###############################################################################
+
+### WebSocket Connection
+### ws://localhost:3000/ws
+### Note: WebSocket connections require authentication
+### Include session cookie in WebSocket connection headers
+
+###############################################################################
+### TESTING INSTRUCTIONS
+###############################################################################
+
+### 1. SETUP:
+###    - Install REST Client extension by Huachao Mao in VS Code
+###    - Make sure your Go server is running on localhost:3000
+###    - Ensure your database is properly initialized
+
+### 2. AUTHENTICATION FLOW:
+###    - First register users using the registration endpoints
+###    - Login to get session cookies
+###    - Copy the session cookie value and update the @jane_session and @john_session variables
+###    - Session cookies look like: social-network-session=MTc1MDg3OTg2M3w...
+
+### 3. TESTING ORDER:
+###    - Start with authentication endpoints
+###    - Test user profile endpoints
+###    - Create posts and test post endpoints
+###    - Test social features (likes, comments, follows)
+###    - Test group functionality
+###    - Test chat functionality
+
+### 4. REPLACE PLACEHOLDERS:
+###    - Replace USER_ID_HERE with actual user IDs from registration/login responses
+###    - Replace POST_ID_HERE with actual post IDs from post creation responses
+###    - Replace GROUP_ID_HERE with actual group IDs from group creation responses
+###    - Replace CHAT_ID_HERE with actual chat IDs from chat creation responses
+###    - Replace EVENT_ID_HERE with actual event IDs from event creation responses
+###    - Replace INVITATION_ID_HERE with actual invitation IDs
+
+### 5. SESSION MANAGEMENT:
+###    - Sessions expire after some time, re-login if you get 401 Unauthorized
+###    - Each user needs their own session cookie for testing multi-user scenarios
+
+### 6. WEBSOCKET TESTING:
+###    - Use a WebSocket client like wscat or browser dev tools
+###    - Connect to ws://localhost:3000/ws with proper authentication headers
+###    - Test real-time messaging functionality
+
+### 7. CORS CONFIGURATION:
+###    - Your server is configured for http://127.0.0.1:5500
+###    - If testing from different origin, update CORS settings in main.go
+
+### 8. ERROR HANDLING:
+###    - Check server logs for detailed error messages
+###    - Common issues: missing authentication, invalid IDs, database constraints
+
+### 9. DATABASE STATE:
+###    - Some operations depend on existing data (users, posts, groups)
+###    - Create test data in logical order: users -> posts -> groups -> chats
+
+### 10. PRIVACY SETTINGS:
+###     - Test different privacy levels for posts
+###     - Verify access control for private content
+###     - Test group membership requirements
