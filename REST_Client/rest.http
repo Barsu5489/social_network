@@ -317,7 +317,15 @@ Cookie: {{john_session}}
 ###############################################################################
 ### CHAT ENDPOINTS
 ###############################################################################
+###############################################################################
+### WEBSOCKET CONNECTION (for reference)
+##############################################################################
+?### WebSocket Connection. 
+Run this on terminal to connect to WebSocket server
+### Make sure your server is running and WebSocket endpoint is set up
+### Replace {ENTER_SESSION_COOKIE_HERE} with actual session cookie value
 
+npx wscat -c ws://localhost:3000/ws   -H "Cookie: social-network-session={ENTER_SESSION_COOKIE_HERE}"
 ### Get User's Chats
 GET http://localhost:3000/api/chats
 Cookie: {{jane_session}}
@@ -382,6 +390,7 @@ Cookie: {{jane_session}}
 {
     "user_id": "USER_ID_HERE"
 }
+
 
 ###############################################################################
 ### WEBSOCKET CONNECTION (for reference)
