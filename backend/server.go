@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -12,7 +13,48 @@ import (
 	"social-nework/pkg/handlers"
 	"social-nework/pkg/handlers/groups"
 	"social-nework/pkg/models"
+	"social-nework/pkg/repository"
+	"social-nework/pkg/websocket"
 )
+
+func setupChatSystem(db *sql.DB, router *mux.Router) (*websocket.Hub, *repository.ChatRepository, *repository.GroupRepository) {
+	// Initialize repositories
+	chatRepo := &repository.ChatRepository{DB: db}
+	messageRepo := &repository.MessageRepository{DB: db}
+	groupRepo := &repository.GroupRepository{DB: db} // Add group repository
+
+	// Initialize WebSocket hub
+	hub := websocket.NewHub(db, messageRepo, chatRepo)
+	go hub.Run() // Start the hub in a goroutine
+	// Initialize HTTP handlers with all required repositories
+	chatHandler := handlers.NewChatHandler(chatRepo, messageRepo, groupRepo, hub)
+
+	// Register chat routes
+	registerChatRoutes(router, chatHandler)
+
+	// Register WebSocket endpoint
+	router.HandleFunc("/ws", websocket.WebSocketAuth(hub, func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWS(hub, w, r)
+	})).Methods("GET")
+
+	// Return the instances so they can be used elsewhere
+	return hub, chatRepo, groupRepo
+}
+
+func registerChatRoutes(router *mux.Router, handler *handlers.ChatHandler) {
+	// Chat management routes
+	router.HandleFunc("/api/chats", auth.RequireAuth(handler.GetUserChats)).Methods("GET")
+	router.HandleFunc("/api/chats/direct", auth.RequireAuth(handler.CreateDirectChat)).Methods("POST")
+	router.HandleFunc("/api/chats/group", auth.RequireAuth(handler.CreateGroupChat)).Methods("POST")
+
+	// Message management routes
+	router.HandleFunc("/api/chats/{chatId}/messages", auth.RequireAuth(handler.GetChatMessages)).Methods("GET")
+	router.HandleFunc("/api/chats/{chatId}/messages", auth.RequireAuth(handler.SendMessage)).Methods("POST")
+	router.HandleFunc("/api/chats/{chatId}/participants", auth.RequireAuth(handler.AddParticipant)).Methods("POST")
+
+	// Group chat helper route
+	router.HandleFunc("/api/groups/{groupId}/chat", auth.RequireAuth(handler.GetGroupChatForGroup)).Methods("GET")
+}
 
 func main() {
 	// Initialize SQLite database
@@ -25,18 +67,21 @@ func main() {
 	// Models
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
-	// postModel := &models.PostModel{DB: db}
-	groupHandler := groups.NewGroupHandler(db)
+
+	// Initialize router
+	router := mux.NewRouter()
+
+	// Setup chat system with all routes and get the required instances
+	hub, chatRepo, groupRepo := setupChatSystem(db, router)
+
+	// Now create the GroupHandler with all required dependencies
+	groupHandler := groups.NewGroupHandler(db, groupRepo, chatRepo, hub)
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
 	followHandler := &handlers.FollowHandler{FollowModel: followModel}
-	// postHandler := &handlers.PostHandler{Post: postModel}
 
-	//  Initialize router
-	router := mux.NewRouter()
-
-	// follow routes with middleware RequireAuth
+	// Follow routes with middleware RequireAuth
 	router.HandleFunc("/follow/{userID}", auth.RequireAuth(followHandler.Follow)).Methods("POST")
 	router.HandleFunc("/unfollow/{userID}", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
 	router.HandleFunc("/followers", auth.RequireAuth(followHandler.GetFollowers)).Methods("GET")
@@ -47,7 +92,7 @@ func main() {
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
 	router.HandleFunc("/api/logout", authHandler.Logout).Methods("POST")
 
-	// post routes with middleware
+	// Post routes with middleware
 	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
 	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
 	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
@@ -67,15 +112,10 @@ func main() {
 
 	// todo - fix likes models and handlers
 	// Like a post
+	// Like routes
 	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodPost)
-
-	// Unlike a post
 	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodDelete)
-
-	// Get likes for a post
 	router.HandleFunc("/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods(http.MethodGet)
-
-	// Get posts liked by a user
 	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
 	// Group Management Routes
@@ -96,11 +136,7 @@ func main() {
 	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.GetGroupEvents)).Methods("GET")
 	router.HandleFunc("/api/events/{eventId}/rsvp", auth.RequireAuth(groupHandler.RSVPEvent)).Methods("POST")
 
-	// Optional: To get liked posts by currently logged-in user
-	// router.HandleFunc("/me/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
-
-	// Start server with router
-	// ---- CORS MIDDLEWARE ----
+	// CORS MIDDLEWARE
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -112,7 +148,6 @@ func main() {
 	handler := corsHandler.Handler(router)
 
 	// Start server
-	log.Println("Server starting on :3000...")
 	if err := http.ListenAndServe(":3000", handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
