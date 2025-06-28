@@ -2,6 +2,7 @@ package groups
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"social-nework/pkg/models"
 	"time"
@@ -41,16 +42,16 @@ func (gh *GroupHandler) RespondToInvitation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	var invitation models.Invitation
+	inviteQuery := `SELECT inviter_id, invitee_id, entity_id FROM invitations WHERE id = ?`
+	err = gh.db.QueryRow(inviteQuery, invitationID).Scan(&invitation.InviterID, &invitation.InviteeID, &invitation.EntityID)
+	if err != nil {
+		http.Error(w, "Invitation not found", http.StatusNotFound)
+		return
+	}
+
 	// If accepted, add user to group
 	if response.Status == "accepted" {
-		var invitation models.Invitation
-		inviteQuery := `SELECT invitee_id, entity_id FROM invitations WHERE id = ?`
-		err := gh.db.QueryRow(inviteQuery, invitationID).Scan(&invitation.InviteeID, &invitation.EntityID)
-		if err != nil {
-			http.Error(w, "Invitation not found", http.StatusNotFound)
-			return
-		}
-
 		memberQuery := `INSERT INTO group_members (id, group_id, user_id, role, joined_at) 
 						VALUES (?, ?, ?, ?, ?)`
 		memberID := uuid.New().String()
@@ -60,6 +61,33 @@ func (gh *GroupHandler) RespondToInvitation(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "Failed to add member to group", http.StatusInternalServerError)
 			return
 		}
+	}
+
+	var notification models.Notification
+	if invitation.InviterID == invitation.InviteeID {
+		// Scenario 1: User requested to join a group (inviter_id == invitee_id)
+		notification = models.Notification{
+			UserID:      invitation.InviteeID,
+			Type:        "group_join_response",
+			ReferenceID: invitation.EntityID,
+			IsRead:      false,
+			CreatedAt:   time.Now(),
+		}
+	} else {
+		// Scenario 2: Direct group invitation (inviter_id != invitee_id)
+		notification = models.Notification{
+			UserID:      invitation.InviterID,
+			Type:        "group_invitation_response",
+			ReferenceID: invitation.EntityID,
+			IsRead:      false,
+			CreatedAt:   time.Now(),
+		}
+	}
+
+	_, err = gh.NotificationModel.Insert(r.Context(), notification)
+	if err != nil {
+		fmt.Printf("Failed to create notification for group invitation response: %v\n", err)
+		// Decide if you should rollback the invitation status update or just log the error
 	}
 
 	w.WriteHeader(http.StatusOK)
