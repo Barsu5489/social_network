@@ -2,6 +2,7 @@ package groups
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"social-nework/pkg/models"
 	"time"
@@ -70,14 +71,17 @@ func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Notify group creator
-	notificationQuery := `INSERT INTO notifications (id, user_id, type, reference_id, created_at) 
-						  VALUES (?, ?, ?, ?, ?)`
-	notificationID := uuid.New().String()
-	_, err = gh.db.Exec(notificationQuery, notificationID, creatorID,
-		"group_invite", invitation.ID, time.Now().Unix())
+	notification := models.Notification{
+		UserID:      creatorID,
+		Type:        "group_join_request",
+		ReferenceID: request.UserID,
+		IsRead:      false,
+		CreatedAt:   time.Now(),
+	}
+	_, err = gh.NotificationModel.Insert(r.Context(), notification)
 	if err != nil {
-		http.Error(w, "Failed to send notification", http.StatusInternalServerError)
-		return
+		// Log the error but don't fail the join request
+		fmt.Printf("Failed to create notification for group join request: %v\n", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
