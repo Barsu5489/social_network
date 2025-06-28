@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -20,7 +19,7 @@ func GetNotifications(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := r.Context().Value("user_id").(int)
+		userID, ok := r.Context().Value("user_id").(string)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -51,25 +50,20 @@ func MarkNotificationAsRead(db *sql.DB) http.HandlerFunc {
 
 		// Ensure user is authenticated, though not strictly necessary for this specific action if notification ID is public
 		// but good practice for API security.
-		_, ok := r.Context().Value("user_id").(int)
+		_, ok := r.Context().Value("user_id").(string)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		vars := mux.Vars(r)
-		idStr := vars["id"]
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid notification ID", http.StatusBadRequest)
-			return
-		}
+		id := vars["id"]
 
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
 		notificationModel := &models.NotificationModel{DB: db}
-		err = notificationModel.MarkAsRead(ctx, id)
+		err := notificationModel.MarkAsRead(ctx, id)
 		if err != nil {
 			http.Error(w, "Failed to mark notification as read", http.StatusInternalServerError)
 			return
