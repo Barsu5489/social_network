@@ -13,7 +13,7 @@ import (
 )
 
 // LikeComment handles like/unlike requests for comments
-func LikeComment(db *sql.DB) http.HandlerFunc {
+func LikeComment(db *sql.DB, notificationModel *models.NotificationModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the user ID from context (from auth middleware)
 		userID, ok := r.Context().Value("user_id").(string)
@@ -67,7 +67,7 @@ func LikeComment(db *sql.DB) http.HandlerFunc {
 
 		if isLike {
 			// Like the comment
-			like, err := models.CreateLike(db, ctx, userID, "comment", commentID)
+			like, err := models.CreateLike(db, ctx, notificationModel, userID, "comment", commentID)
 			if err != nil {
 				// If the error is because user already liked the comment, return a specific status code
 				if err.Error() == "user already liked this content" {
