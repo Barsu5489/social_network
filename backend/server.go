@@ -67,6 +67,7 @@ func main() {
 	// Models
 	userModel := &auth.UserModel{DB: db}
 	followModel := &models.FollowModel{DB: db}
+	notificationModel := &models.NotificationModel{DB: db}
 
 	// Initialize router
 	router := mux.NewRouter()
@@ -75,11 +76,11 @@ func main() {
 	hub, chatRepo, groupRepo := setupChatSystem(db, router)
 
 	// Now create the GroupHandler with all required dependencies
-	groupHandler := groups.NewGroupHandler(db, groupRepo, chatRepo, hub)
+	groupHandler := groups.NewGroupHandler(db, groupRepo, chatRepo, hub, notificationModel)
 
 	// Handlers
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
-	followHandler := &handlers.FollowHandler{FollowModel: followModel}
+	followHandler := &handlers.FollowHandler{FollowModel: followModel, NotificationModel: notificationModel}
 
 	// Follow routes with middleware RequireAuth
 	router.HandleFunc("/follow/{userID}", auth.RequireAuth(followHandler.Follow)).Methods("POST")
@@ -113,8 +114,8 @@ func main() {
 	// todo - fix likes models and handlers
 	// Like a post
 	// Like routes
-	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodPost)
-	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db))).Methods(http.MethodDelete)
+	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods(http.MethodPost)
+	router.HandleFunc("/posts/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods(http.MethodPost)
 	router.HandleFunc("/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods(http.MethodGet)
 	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
 
