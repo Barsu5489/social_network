@@ -13,7 +13,7 @@ import (
 )
 
 // LikePost handles like/unlike requests for posts
-func LikePost(db *sql.DB) http.HandlerFunc {
+func LikePost(db *sql.DB, notificationModel *models.NotificationModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the user ID from context (from auth middleware)
 		userID, ok := r.Context().Value("user_id").(string)
@@ -65,7 +65,7 @@ func LikePost(db *sql.DB) http.HandlerFunc {
 
 		if isLike {
 			// Like the post
-			like, err := models.CreateLike(db, ctx, userID, "post", postID)
+			like, err := models.CreateLike(db, ctx, notificationModel, userID, "post", postID)
 			if err != nil {
 				// If the error is because user already liked the post, return a specific status code
 				if err.Error() == "user already liked this content" {
