@@ -1,5 +1,15 @@
 <script>
   import { goto } from '$app/navigation';
+  import { isAuthenticated } from '$lib/services/auth/authService';
+  import { onMount } from 'svelte';
+
+  onMount(() => {
+    isAuthenticated.subscribe(value => {
+      if (value) {
+        goto('/home');
+      }
+    });
+  });
 </script>
 
 <svelte:head>
@@ -170,7 +180,7 @@
     max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;;
     gap: 4rem;
     align-items: center;
   }

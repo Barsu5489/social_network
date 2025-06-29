@@ -76,6 +76,8 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 
 	var user models.User
 	var passwordHash string
+	var aboutMe sql.NullString
+	var avatarURL sql.NullString
 
 	err := u.DB.QueryRow(query, email).Scan(
 		&user.ID,
@@ -85,8 +87,8 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 		&user.LastName,
 		&user.Nickname,
 		&user.DateOfBirth,
-		&user.AboutMe,
-		&user.AvatarURL,
+		&aboutMe,
+		&avatarURL,
 		&user.IsPrivate,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -96,6 +98,14 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 			return nil, errors.New("invalid credentials")
 		}
 		return nil, err
+	}
+
+	if aboutMe.Valid {
+		user.AboutMe = aboutMe.String
+	}
+
+	if avatarURL.Valid {
+		user.AvatarURL = avatarURL.String
 	}
 
 	// Verify password

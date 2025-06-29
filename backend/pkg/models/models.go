@@ -38,6 +38,9 @@ type Post struct {
 	LikesCount int    `json:"likes_count"`
 	UserLiked  bool   `json:"user_liked,omitempty"`
 
+	AuthorNickname  string `json:"author_nickname,omitempty"`
+	AuthorAvatarURL string `json:"author_avatar_url,omitempty"`
+
 	AllowedUserIDs []string `json:"allowed_user_ids,omitempty"`
 }
 
