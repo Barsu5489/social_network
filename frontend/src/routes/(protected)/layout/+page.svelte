@@ -1,4 +1,3 @@
-<!-- src/lib/components/MainLayout.svelte -->
 <script>
 
 import Navbar from '$lib/components/Navbar.svelte';
@@ -12,7 +11,7 @@ import Navbar from '$lib/components/Navbar.svelte';
 <div class="app-layout">
   <Navbar {user} />
   
-  <!-- <div class="main-container">
+  <div class="main-container">
     <LeftSidebar {user} />
     
     <main class="main-content">
@@ -20,7 +19,7 @@ import Navbar from '$lib/components/Navbar.svelte';
     </main>
     
     <RightSidebar />
-  </div> -->
+  </div>
 </div>
 
 <style>

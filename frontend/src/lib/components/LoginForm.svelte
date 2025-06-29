@@ -1,6 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
-  import { login } from '$lib/services/auth/authService';
+  import { login } from '$lib/services/authService';
   
   let email = "";
   let password = "";
@@ -17,8 +17,10 @@
     error = "";
 
     try {
-      await login({ email, password });
+      const loginResult = await login({ email, password });
+      console.log('Login successful, result:', loginResult);
       // Handle successful login - redirect to profile
+      console.log('Redirecting to /layout');
       goto('/layout');
     } catch (err) {
       error = err.message || 'Login failed. Please try again.';

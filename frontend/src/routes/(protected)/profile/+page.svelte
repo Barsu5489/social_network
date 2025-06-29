@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { user, isAuthenticated, logout } from '$lib/services/auth/authService';
+  import { user, isAuthenticated, logout } from '$lib/services/authService';
 
   let profileData = null;
   let loading = true;

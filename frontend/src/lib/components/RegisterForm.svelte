@@ -1,6 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
-  import { register } from '$lib/services/auth/authService';
+  import { register } from '$lib/services/authService';
   
   let formData = {
     username: "",
