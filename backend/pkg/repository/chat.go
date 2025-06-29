@@ -143,7 +143,7 @@ func (r *ChatRepository) GetChatParticipantsWithDetails(chatID string) ([]models
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(userID string) ([]models.Chat, error) {
 	rows, err := r.DB.Query(`
-		SELECT c.id, c.type, c.created_at
+		SELECT c.id, c.type,  strftime('%s', c.created_at)
 		FROM chats c
 		JOIN chat_participants cp ON c.id = cp.chat_id
 		WHERE cp.user_id = ? AND c.deleted_at IS NULL AND cp.deleted_at IS NULL
