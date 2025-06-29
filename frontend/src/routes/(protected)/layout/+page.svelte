@@ -1,6 +1,8 @@
 <script>
 
 import Navbar from '$lib/components/Navbar.svelte';
+import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+
   
   export let user = {
     name: 'Swapo El Nenjez',
