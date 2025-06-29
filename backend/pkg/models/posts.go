@@ -147,9 +147,12 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
             p.created_at, 
             p.updated_at, 
             p.deleted_at,
+            u.nickname AS author_nickname,
+            u.avatar_url AS author_avatar_url,
             COUNT(l.id) AS likes_count,
             MAX(CASE WHEN l.user_id = $1 AND l.deleted_at IS NULL THEN 1 ELSE 0 END) AS user_liked
         FROM posts p
+        JOIN users u ON p.user_id = u.id
         LEFT JOIN likes l ON 
             p.id = l.likeable_id AND 
             l.likeable_type = 'post'
@@ -174,6 +177,7 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
 		var p Post
 		var groupID sql.NullString
 		var deletedAt sql.NullInt64
+		var authorAvatarURL sql.NullString
 
 		err := rows.Scan(
 			&p.ID,
@@ -184,6 +188,8 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
 			&p.CreatedAt,
 			&p.UpdatedAt,
 			&deletedAt,
+			&p.AuthorNickname,
+			&authorAvatarURL,
 			&p.LikesCount,
 			&p.UserLiked,
 		)
@@ -203,6 +209,12 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
 			p.DeletedAt = &deletedAt.Int64
 		} else {
 			p.DeletedAt = nil
+		}
+
+		if authorAvatarURL.Valid {
+			p.AuthorAvatarURL = authorAvatarURL.String
+		} else {
+			p.AuthorAvatarURL = "" // Default to empty string if NULL
 		}
 
 		posts = append(posts, p)
