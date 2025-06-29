@@ -1,29 +1,59 @@
+<!-- Layout.svelte -->
 <script>
+  import Navbar from '$lib/components/Navbar.svelte';
+  import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+  import { user, isAuthenticated, getCurrentUser, getAllPosts } from '$lib/services/api';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
-import Navbar from '$lib/components/Navbar.svelte';
-import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+  let userData = null;
+  let authStatus = false;
 
-  
-  export let user = {
-    name: 'Swapo El Nenjez',
-    email: 'swapo@example.com'
-  };
+  user.subscribe(value => {
+    userData = value;
+  });
+  isAuthenticated.subscribe(value => {
+    authStatus = value;
+  });
+
+  onMount(async () => {
+    if (!authStatus) {
+      try {
+        // Fetch current user profile to verify authentication
+        await getCurrentUser();
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+        goto('/login');
+        return;
+      }
+    }
+
+    try {
+      // Fetch posts to populate feeds
+      await getAllPosts();
+    } catch (error) {
+      console.error('Failed to load posts:', error);
+    }
+  });
 </script>
 
-<div class="app-layout">
-  <Navbar {user} />
-  
-  <div class="main-container">
-    <LeftSidebar {user} />
+{#if userData && authStatus}
+  <div class="app-layout">
+    <Navbar user={userData} />
     
-    <main class="main-content">
-      <slot />
-    </main>
-    
-    <RightSidebar />
+    <div class="main-container">
+      <LeftSidebar user={userData} />
+      
+      <main class="main-content">
+        <slot />
+      </main>
+      
+      <RightSidebar />
+    </div>
   </div>
-</div>
-
+{:else}
+  <p>Loading...</p>
+{/if}
 <style>
   .app-layout {
     min-height: 100vh;

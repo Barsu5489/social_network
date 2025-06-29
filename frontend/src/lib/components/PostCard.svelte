@@ -1,82 +1,100 @@
+<!-- PostCard.svelte -->
 <script>
+  import { deletePost } from '$lib/services/api';
+
   export let post = {};
-  
-  let liked = false;
-  let likeCount = post.likes || 0;
+  export let user = null;
+
+  let liked = post.user_liked || false;
+  let likeCount = post.likes_count || 0;
   let showComments = false;
   let newComment = '';
   let comments = post.comments || [];
-  
+  let errorMessage = '';
+
   function toggleLike() {
+    // Placeholder: Backend endpoint needed for likes
     liked = !liked;
     likeCount += liked ? 1 : -1;
+    console.log('Toggling like for post:', post.id);
   }
-  
+
   function toggleComments() {
     showComments = !showComments;
   }
-  
+
   function addComment() {
-    if (newComment.trim()) {
-      comments = [...comments, {
-        id: Date.now(),
-        author: 'Current User',
-        text: newComment.trim(),
-        timestamp: 'now'
-      }];
-      newComment = '';
+    if (!newComment.trim()) return;
+    
+    comments = [...comments, {
+      id: Date.now(),
+      author: user?.name || 'Current User',
+      text: newComment.trim(),
+      timestamp: 'now'
+    }];
+    newComment = '';
+    console.log('Adding comment to post:', post.id);
+  }
+
+  async function deletePostHandler() {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+    
+    try {
+      await deletePost(post.id);
+    } catch (error) {
+      errorMessage = 'Failed to delete post. Please try again.';
+      console.error('Delete post error:', error);
     }
   }
-  
+
   function sharePost() {
     console.log('Sharing post:', post.id);
   }
-  
+
   function getInitials(name) {
     return name?.split(' ').map(n => n.charAt(0)).join('').substring(0, 2) || 'U';
   }
-  
+
   function formatTime(timestamp) {
     if (timestamp === 'now') return 'now';
-    // Add proper time formatting logic here
-    return timestamp || '10m';
+    if (!timestamp) return '10m';
+    const date = new Date(timestamp * 1000); // Unix timestamp in seconds
+    const now = new Date();
+    const diff = (now - date) / 1000; // Seconds
+    if (diff < 60) return `${Math.floor(diff)}s`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    return date.toLocaleString();
   }
 </script>
 
 <article class="post-card">
-  <!-- Post Header -->
   <header class="post-header">
     <div class="post-author">
       <div class="author-avatar">
-        {getInitials(post.author)}
+        {getInitials(user?.name && post.user_id === user.id ? user.name : 'User')}
       </div>
       <div class="author-info">
-        <h4 class="author-name">{post.author || 'User Name'}</h4>
+        <h4 class="author-name">{user?.name && post.user_id === user.id ? user.name : 'User'}</h4>
         <div class="post-meta">
-          <span class="post-time">{formatTime(post.timestamp)}</span>
-          <span class="visibility-icon">🌐</span>
+          <span class="post-time">{formatTime(post.created_at)}</span>
+          <span class="visibility-icon">{post.privacy === 'public' ? '🌐' : post.privacy === 'private' ? '🔒' : '👥'}</span>
         </div>
       </div>
     </div>
-    <button class="post-options">
-      ⋯
-    </button>
-  </header>
-  
-  <!-- Post Content -->
-  <div class="post-content">
-    {#if post.text}
-      <p class="post-text">{post.text}</p>
+    {#if post.user_id === user?.id}
+      <button class="post-options" on:click={deletePostHandler}>
+        🗑️
+      </button>
     {/if}
-    
-    {#if post.image}
-      <div class="post-image">
-        <img src={post.image} alt="Post content" />
-      </div>
+  </header>
+
+  <div class="post-content">
+    {#if post.content}
+      <p class="post-text">{post.content}</p>
     {/if}
   </div>
-  
-  <!-- Post Stats -->
+
   {#if likeCount > 0 || comments.length > 0}
     <div class="post-stats">
       {#if likeCount > 0}
@@ -92,35 +110,30 @@
       {/if}
     </div>
   {/if}
-  
-  <!-- Post Actions -->
+
   <div class="post-actions">
-    <button 
-      class="action-btn {liked ? 'liked' : ''}" 
-      on:click={toggleLike}
-    >
+    <button class="action-btn {liked ? 'liked' : ''}" on:click={toggleLike}>
       <span class="action-icon">👍</span>
       <span>Like</span>
     </button>
-    
     <button class="action-btn" on:click={toggleComments}>
       <span class="action-icon">💬</span>
       <span>Comment</span>
     </button>
-    
     <button class="action-btn" on:click={sharePost}>
       <span class="action-icon">📤</span>
       <span>Share</span>
     </button>
   </div>
-  
-  <!-- Comments Section -->
+
   {#if showComments}
     <div class="comments-section">
-      <!-- Add Comment -->
+      {#if errorMessage}
+        <div class="error-message">{errorMessage}</div>
+      {/if}
       <div class="add-comment">
         <div class="comment-avatar">
-          U
+          {getInitials(user?.name || 'U')}
         </div>
         <div class="comment-input-container">
           <input 
@@ -139,8 +152,6 @@
           </button>
         </div>
       </div>
-      
-      <!-- Comments List -->
       {#each comments as comment}
         <div class="comment">
           <div class="comment-avatar">
@@ -183,7 +194,11 @@
     display: flex;
     align-items: center;
   }
-  
+  .error-message {
+    color: red;
+    font-size: 0.9em;
+    margin-bottom: 1em;
+  }
   .author-avatar {
     width: 40px;
     height: 40px;
@@ -248,16 +263,6 @@
     color: #1c1e21;
     margin: 0 0 12px 0;
     word-wrap: break-word;
-  }
-  
-  .post-image {
-    margin: 12px -16px 0 -16px;
-  }
-  
-  .post-image img {
-    width: 100%;
-    height: auto;
-    display: block;
   }
   
   .post-stats {

@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { fetchWithSession } from './api.js';
+import { fetchWithSession } from '$lib/services/api';
 
 // Store for posts data
 export const posts = writable([]);
@@ -29,8 +29,12 @@ export async function createPost(postData) {
         allowed_user_ids: postData.allowedUserIDs || null
       })
     });
-
-    return response;
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json(); // Parse JSON response
   } catch (error) {
     console.error('Error creating post:', error);
     throw error;
