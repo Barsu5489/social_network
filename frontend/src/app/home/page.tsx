@@ -87,8 +87,8 @@ export default async function HomePage() {
 
   return (
         <main className="flex-1 p-4 lg:p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-            <div className="lg:col-span-2 xl:col-span-2 xl:col-start-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2">
               <ScrollArea className="h-[calc(100vh-100px)]">
                 <div className="pr-4 space-y-6">
                   <CreatePost />
@@ -107,7 +107,7 @@ export default async function HomePage() {
                 </div>
               </ScrollArea>
             </div>
-            <aside className="hidden xl:block xl:col-span-1">
+            <aside className="hidden lg:block lg:col-span-1">
               <div className="flex flex-col gap-6 sticky top-24">
                 <SuggestedGroups groups={groups} />
               </div>
