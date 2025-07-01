@@ -2,6 +2,7 @@ package groups
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -62,11 +63,18 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var memberUserID string
 			if rows.Scan(&memberUserID) == nil {
-				notificationQuery := `INSERT INTO notifications (id, user_id, type, reference_id, created_at) 
-									  VALUES (?, ?, ?, ?, ?)`
-				notificationID := uuid.New().String()
-				gh.db.Exec(notificationQuery, notificationID, memberUserID,
-					"event_created", event.ID, time.Now().Unix())
+				notification := models.Notification{
+					UserID:      memberUserID,
+					Type:        "event_created",
+					ReferenceID: event.ID,
+					IsRead:      false,
+					CreatedAt:   time.Now(),
+				}
+				_, err = gh.NotificationModel.Insert(r.Context(), notification)
+				if err != nil {
+					// Log the error but don't fail the event creation
+					fmt.Printf("Failed to create notification for user %s: %v\n", memberUserID, err)
+				}
 			}
 		}
 	}

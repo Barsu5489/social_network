@@ -14,7 +14,8 @@ import (
 )
 
 type FollowHandler struct {
-	FollowModel *models.FollowModel
+	FollowModel       *models.FollowModel
+	NotificationModel *models.NotificationModel
 }
 
 func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +24,7 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("user_id").(string)
+	followerID, ok := r.Context().Value("user_id").(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -39,7 +40,7 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := h.FollowModel.Follow(ctx, userID, followedID)
+	err := h.FollowModel.Follow(ctx, followerID, followedID)
 	if err != nil {
 		if err.Error() == "cannot follow yourself" || err.Error() == "follow already exists" {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -48,6 +49,20 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to follow user: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
+	}
+
+	// Create a notification for the user being followed
+	notification := models.Notification{
+		UserID:      followedID,
+		Type:        "new_follower",
+		ReferenceID: followerID,
+		IsRead:      false,
+		CreatedAt:   time.Now(),
+	}
+	_, err = h.NotificationModel.Insert(ctx, notification)
+	if err != nil {
+		log.Printf("Failed to create notification: %v", err)
+		// Decide if you should rollback the follow or just log the error
 	}
 
 	w.WriteHeader(http.StatusCreated)

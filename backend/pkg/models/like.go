@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableID string) (*Like, error) {
+func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, userID, likeableType, likeableID string) (*Like, error) {
 	if likeableType != "post" && likeableType != "comment" {
 		return nil, errors.New("invalid likeable type")
 	}
@@ -65,12 +66,19 @@ func CreateLike(db *sql.DB, ctx context.Context, userID, likeableType, likeableI
 		err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
 		if err == nil && postOwnerID != userID {
 			// Don't notify for self-likes
-			notificationID := uuid.New().String()
-			notifyStmt := `
-					INSERT INTO notifications (id, user_id, type, reference_id, is_read, created_at)
-					VALUES (?, ?, ?, ?, ?, ?)
-				`
-			db.ExecContext(ctx, notifyStmt, notificationID, postOwnerID, "new_like", id, false, now)
+			notification := Notification{
+				UserID:      postOwnerID,
+				Type:        "new_like",
+				ReferenceID: id,
+				IsRead:      false,
+				CreatedAt:   time.Now(),
+			}
+			_, err = notificationModel.Insert(ctx, notification)
+			if err != nil {
+				// Log the error, but don't return it as the like was successful
+				// You might want to add more robust error handling here
+				fmt.Printf("Failed to create notification for like: %v\n", err)
+			}
 		}
 	}
 

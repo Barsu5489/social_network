@@ -66,11 +66,14 @@ func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create notification
-	notificationQuery := `INSERT INTO notifications (id, user_id, type, reference_id, created_at) 
-						  VALUES (?, ?, ?, ?, ?)`
-	notificationID := uuid.New().String()
-	_, err = gh.db.Exec(notificationQuery, notificationID, invitation.InviteeID,
-		"group_invite", invitation.ID, time.Now().Unix())
+	notification := models.Notification{
+		UserID:      invitation.InviteeID,
+		Type:        "group_invite",
+		ReferenceID: invitation.EntityID,
+		IsRead:      false,
+		CreatedAt:   time.Now(),
+	}
+	_, err = gh.NotificationModel.Insert(r.Context(), notification)
 	if err != nil {
 		http.Error(w, "Failed to create notification for group invitation", http.StatusInternalServerError)
 		return

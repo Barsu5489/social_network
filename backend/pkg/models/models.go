@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type User struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
@@ -126,6 +128,18 @@ type Comment struct {
 	LikesCount   int    `json:"likes_count"`
 	UserLiked    bool   `json:"user_liked,omitempty"`
 }
+
+// Notification represents a notification in the system.
+type Notification struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	Type        string    `json:"type"`
+	ReferenceID string    `json:"reference_id"`
+	IsRead      bool      `json:"is_read"`
+	CreatedAt   time.Time `json:"created_at"`
+	DeletedAt   *int64    `json:"deleted_at,omitempty"`
+}
+	
 type Chat struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"` // "direct" or "group"
