@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/lib/config";
 import { useUser } from "@/contexts/user-context";
 import { FileUpload } from "@/components/file-upload";
+import { getRandomAvatar } from "@/lib/avatars";
 
 const signUpSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -126,96 +127,120 @@ const SignInFormComponent = ({
   </>
 );
 
-// SignUpForm Component
+// SignUpForm Component (Multi-step)
 const SignUpFormComponent = ({
   form,
   onSubmit,
   showPassword,
   setShowPassword,
   onSwitchMode,
+  step,
+  setStep,
 }: {
   form: UseFormReturn<SignUpFormValues>;
   onSubmit: (values: SignUpFormValues) => void;
   showPassword: boolean;
   setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
   onSwitchMode: () => void;
-}) => (
-  <>
-    <div className="grid gap-2 text-center">
-      <h1 className="text-3xl font-bold">Create an account</h1>
-      <p className="text-balance text-muted-foreground">Enter your information to create a new account</p>
-    </div>
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="Sofia" {...field} /></FormControl><FormMessage /></FormItem>)} />
-          <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Robinson" {...field} /></FormControl><FormMessage /></FormItem>)} />
-        </div>
-        <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-              <FormItem>
-                  <FormLabel>Password</FormLabel>
-                   <div className="relative">
-                    <FormControl>
-                        <Input type={showPassword ? "text" : "password"} {...field} />
-                    </FormControl>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
-                      <span className="sr-only">Toggle password visibility</span>
-                    </Button>
-                  </div>
-                  <FormMessage />
-              </FormItem>
-          )}
-        />
-        <FormField control={form.control} name="dateOfBirth" render={({ field }) => (<FormItem><FormLabel>Date of birth</FormLabel><FormControl><Input placeholder="YYYY-MM-DD" {...field} /></FormControl><FormMessage /></FormItem>)} />
-        <FormField control={form.control} name="nickname" render={({ field }) => (<FormItem><FormLabel>Nickname (Optional)</FormLabel><FormControl><Input placeholder="Your cool nickname" {...field} /></FormControl><FormMessage /></FormItem>)} />
-        <FormField control={form.control} name="aboutMe" render={({ field }) => (<FormItem><FormLabel>About Me (Optional)</FormLabel><FormControl><Textarea placeholder="Tell us a little about yourself" {...field} /></FormControl><FormMessage /></FormItem>)} />
-        <FormField
-            control={form.control}
-            name="avatarFile"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Avatar (Optional)</FormLabel>
-                    <FormControl>
-                        <FileUpload
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={form.formState.isSubmitting}
-                        />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField control={form.control} name="isPrivate" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Private Account</FormLabel><FormDescription>Only followers will see your posts.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+  step: number;
+  setStep: React.Dispatch<React.SetStateAction<number>>;
+}) => {
+  const handleNext = async () => {
+    const fields: (keyof SignUpFormValues)[] = ['firstName', 'lastName', 'email', 'password', 'dateOfBirth'];
+    const isValid = await form.trigger(fields, { shouldFocus: true });
+    if (isValid) {
+      setStep(2);
+    }
+  };
 
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}
-        </Button>
-      </form>
-    </Form>
-    <div className="mt-4 text-center text-sm">
-      Already have an account?{' '}
-      <button onClick={onSwitchMode} className="underline font-semibold text-primary">
-        Sign in
-      </button>
-    </div>
-  </>
-);
+  return (
+    <>
+      <div className="grid gap-2 text-center">
+        <h1 className="text-3xl font-bold">Create an account</h1>
+        <p className="text-balance text-muted-foreground">
+          {step === 1 ? "Enter your essential details to get started." : "Add some optional flair to your profile."}
+        </p>
+      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+          {step === 1 && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="Sofia" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Robinson" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              </div>
+              <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <div className="relative">
+                          <FormControl>
+                              <Input type={showPassword ? "text" : "password"} {...field} />
+                          </FormControl>
+                          <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword((prev) => !prev)}>
+                            {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                            <span className="sr-only">Toggle password visibility</span>
+                          </Button>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                )}
+              />
+              <FormField control={form.control} name="dateOfBirth" render={({ field }) => (<FormItem><FormLabel>Date of birth</FormLabel><FormControl><Input placeholder="YYYY-MM-DD" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <Button type="button" className="w-full" onClick={handleNext}>Next</Button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <FormField control={form.control} name="nickname" render={({ field }) => (<FormItem><FormLabel>Nickname (Optional)</FormLabel><FormControl><Input placeholder="Your cool nickname" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="aboutMe" render={({ field }) => (<FormItem><FormLabel>About Me (Optional)</FormLabel><FormControl><Textarea placeholder="Tell us a little about yourself" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField
+                  control={form.control}
+                  name="avatarFile"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Avatar (Optional)</FormLabel>
+                          <FormControl>
+                              <FileUpload
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  disabled={form.formState.isSubmitting}
+                              />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <FormField control={form.control} name="isPrivate" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Private Account</FormLabel><FormDescription>Only followers will see your posts.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Button type="button" variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}
+                </Button>
+              </div>
+            </>
+          )}
+        </form>
+      </Form>
+      <div className="mt-4 text-center text-sm">
+        Already have an account?{' '}
+        <button onClick={onSwitchMode} className="underline font-semibold text-primary">
+          Sign in
+        </button>
+      </div>
+    </>
+  );
+};
 
 
 export default function AuthPage() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [signupStep, setSignupStep] = useState(1);
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const router = useRouter();
@@ -243,6 +268,12 @@ export default function AuthPage() {
       password: "",
     },
   });
+  
+  const handleSwitchMode = () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+    setSignupStep(1); // Reset to first step
+  };
+
 
   async function handleSignIn(values: SignInFormValues) {
     try {
@@ -300,7 +331,7 @@ export default function AuthPage() {
       date_of_birth: dateOfBirth,
       is_private: isPrivate,
       about_me: aboutMe,
-      avatar_url: "", // This would be the URL from the storage service.
+      avatar_url: avatarFile ? "" : getRandomAvatar(),
     };
     
     try {
@@ -350,8 +381,8 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="w-full lg:flex lg:min-h-screen">
-      <div className={cn("w-full lg:w-1/2 flex items-center justify-center py-12 px-4 sm:px-0 transition-all duration-500", authMode === 'signin' ? 'lg:order-1' : 'lg:order-2')}>
+    <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
+      <div className="flex items-center justify-center py-12 px-4 sm:px-0">
         <div className="mx-auto w-full max-w-[400px] grid gap-6 bg-background/80 backdrop-blur-sm border rounded-xl p-8 shadow-2xl">
           {authMode === 'signin' ? (
             <SignInFormComponent
@@ -359,7 +390,7 @@ export default function AuthPage() {
               onSubmit={handleSignIn}
               showPassword={showSignInPassword}
               setShowPassword={setShowSignInPassword}
-              onSwitchMode={() => setAuthMode('signup')}
+              onSwitchMode={handleSwitchMode}
             />
           ) : (
             <SignUpFormComponent
@@ -367,12 +398,14 @@ export default function AuthPage() {
               onSubmit={handleSignUp}
               showPassword={showSignUpPassword}
               setShowPassword={setShowSignUpPassword}
-              onSwitchMode={() => setAuthMode('signin')}
+              onSwitchMode={handleSwitchMode}
+              step={signupStep}
+              setStep={setSignupStep}
             />
           )}
         </div>
       </div>
-      <div className={cn("hidden lg:w-1/2 lg:flex items-center justify-center p-8 flex-col transition-all duration-500", authMode === 'signin' ? 'lg:order-2' : 'lg:order-1' )}>
+      <div className="hidden lg:flex items-center justify-center p-8 flex-col bg-muted/40">
         <Logo />
         <div className="text-center mt-6">
             <h2 className="text-4xl font-bold font-headline">Connect with your world.</h2>
