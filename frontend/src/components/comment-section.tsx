@@ -25,11 +25,14 @@ interface CommentSectionProps {
     postId: string;
 }
 
+const COMMENTS_INITIAL_LIMIT = 10;
+
 export function CommentSection({ postId }: CommentSectionProps) {
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(COMMENTS_INITIAL_LIMIT);
     const { toast } = useToast();
     const { user } = useUser();
 
@@ -71,6 +74,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
                 const data = await response.json();
                 setComments(prev => [...prev, data.comment]);
                 setNewComment("");
+                // Make sure new comment is visible
+                if (comments.length + 1 > visibleCount) {
+                    setVisibleCount(comments.length + 1);
+                }
             } else {
                 toast({ variant: 'destructive', title: 'Failed to post comment.' });
             }
@@ -81,6 +88,9 @@ export function CommentSection({ postId }: CommentSectionProps) {
         }
     };
     
+    const visibleComments = comments.slice(0, visibleCount);
+    const hasMoreComments = comments.length > visibleCount;
+
     return (
         <div className="p-4 pt-2">
             <div className="flex items-start gap-4 mb-4">
@@ -115,8 +125,8 @@ export function CommentSection({ postId }: CommentSectionProps) {
                             </div>
                         </div>
                     ))
-                ) : comments.length > 0 ? (
-                    comments.map(comment => (
+                ) : visibleComments.length > 0 ? (
+                    visibleComments.map(comment => (
                         <div key={comment.id} className="flex items-start gap-4 text-sm">
                             <Avatar className="h-9 w-9">
                                 <AvatarImage src={comment.user_avatar || `https://i.pravatar.cc/40?u=${comment.user_id}`} />
@@ -135,6 +145,11 @@ export function CommentSection({ postId }: CommentSectionProps) {
                     ))
                 ) : (
                     <p className="text-sm text-center text-muted-foreground py-4">No comments yet. Be the first to comment!</p>
+                )}
+                 {hasMoreComments && (
+                    <Button variant="link" className="w-full" onClick={() => setVisibleCount(comments.length)}>
+                        Load all {comments.length} comments
+                    </Button>
                 )}
             </div>
         </div>
