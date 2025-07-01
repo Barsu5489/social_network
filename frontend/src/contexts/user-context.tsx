@@ -1,6 +1,6 @@
 
 'use client';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 
 // This interface matches the 'data' object in the successful login response
 // and the shape of the user object in the profile response.
@@ -40,17 +40,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const setUser = (user: User | null) => {
+  const setUser = useCallback((user: User | null) => {
     setUserState(user);
     if (user) {
       localStorage.setItem('connectu-user', JSON.stringify(user));
     } else {
       localStorage.removeItem('connectu-user');
     }
-  };
+  }, []);
+  
+  const value = useMemo(() => ({ user, setUser, isLoading }), [user, setUser, isLoading]);
+
 
   return (
-    <UserContext.Provider value={{ user, setUser, isLoading }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   );
