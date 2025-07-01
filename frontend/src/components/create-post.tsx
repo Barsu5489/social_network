@@ -28,7 +28,8 @@ type Privacy = 'public' | 'almost_private' | 'private';
 
 const emojis = ['😀', '😂', '😍', '🤔', '😢', '👍', '❤️', '🔥', '🎉', '🚀', '🤯', '🤬', '😡', '😠', '😤', '🥺', '😩', '🥳', '🤩', '🥸', '😎', '🥰', '🤓', '👏🏽', '🙌🏽', '👐🏾', '🫂', '🙅🏽‍♂️', '🤦🏽‍♂️', '💃', '🕺🏽', '🐶'];
 
-export function CreatePost() {
+// Add groupId to props
+export function CreatePost({ groupId }: { groupId?: string }) {
   const [content, setContent] = useState('');
   const [privacy, setPrivacy] = useState<Privacy>('public');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,13 +43,19 @@ export function CreatePost() {
     }
 
     setIsSubmitting(true);
+    
+    // Determine the URL and body based on whether it's a group post
+    const isGroupPost = !!groupId;
+    const url = isGroupPost ? `${API_BASE_URL}/api/groups/${groupId}/posts` : `${API_BASE_URL}/post`;
+    const body = isGroupPost ? JSON.stringify({ content }) : JSON.stringify({ content, privacy });
+
     try {
-      const response = await fetch(`${API_BASE_URL}/post`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content, privacy }),
+        body: body,
         credentials: 'include',
       });
 
@@ -59,13 +66,13 @@ export function CreatePost() {
         });
         setContent('');
         setPrivacy('public');
-        router.refresh();
+        router.refresh(); // Refresh the page to show the new post
       } else {
         const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
         toast({
           variant: "destructive",
           title: "Failed to create post",
-          description: errorData.message || 'Please try again.',
+          description: errorData.error || errorData.message || 'Please try again.',
         });
       }
     } catch (error) {
@@ -97,7 +104,7 @@ export function CreatePost() {
           </Avatar>
           <div className="w-full">
             <Textarea
-              placeholder={`What's on your mind, ${user?.first_name || 'user'}?`}
+              placeholder={groupId ? `What's on your mind, member?` : `What's on your mind, ${user?.first_name || 'user'}?`}
               className="min-h-[60px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-secondary/50"
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -135,28 +142,30 @@ export function CreatePost() {
                 </Popover>
               </div>
               <div className="flex items-center gap-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <CurrentPrivacyIcon className="h-4 w-4 mr-2"/>
-                            {privacyOptions[privacy].label}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => setPrivacy('public')}>
-                            <Globe className="h-4 w-4 mr-2"/>
-                            Public
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPrivacy('almost_private')}>
-                            <Users className="h-4 w-4 mr-2"/>
-                            Followers
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPrivacy('private')} disabled>
-                             <Lock className="h-4 w-4 mr-2"/>
-                            Specific followers
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {!groupId && (
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                              <CurrentPrivacyIcon className="h-4 w-4 mr-2"/>
+                              {privacyOptions[privacy].label}
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => setPrivacy('public')}>
+                              <Globe className="h-4 w-4 mr-2"/>
+                              Public
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setPrivacy('almost_private')}>
+                              <Users className="h-4 w-4 mr-2"/>
+                              Followers
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setPrivacy('private')} disabled>
+                              <Lock className="h-4 w-4 mr-2"/>
+                              Specific followers
+                          </DropdownMenuItem>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
                 <Button onClick={handlePost} disabled={isSubmitting || !content.trim()}>
                     {isSubmitting ? 'Posting...' : 'Post'}
