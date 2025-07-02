@@ -118,6 +118,7 @@ func main() {
 	router.HandleFunc("/posts/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods(http.MethodPost)
 	router.HandleFunc("/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods(http.MethodGet)
 	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
+	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods(http.MethodDelete)
 
 	// Group Management Routes
 	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.CreateGroup)).Methods("POST")
