@@ -33,6 +33,22 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
+  const markAsRead = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/notifications/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to mark notification as read');
+      }
+      // Update the notifications state to remove the read notification
+      setNotifications(notifications.filter((notif) => notif.id !== id));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -76,7 +92,7 @@ export function NotificationBell() {
           notifications.map((notif) => {
             const Icon = icons[notif.type] || Bell
             return (
-              <DropdownMenuItem key={notif.id} asChild>
+              <DropdownMenuItem key={notif.id} asChild onClick={() => markAsRead(notif.id)}>
                 <Link href={notif.href || '#'} className="flex items-start gap-3 w-full">
                   <Avatar className="h-8 w-8 mt-1">
                     <AvatarImage src={notif.user.avatar} />
