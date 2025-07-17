@@ -43,7 +43,9 @@ export function NotificationBell() {
         throw new Error('Failed to mark notification as read');
       }
       // Update the notifications state to remove the read notification
-      setNotifications(notifications.filter((notif) => notif.id !== id));
+      setNotifications((prevNotifications) =>
+        (prevNotifications || []).filter((notif) => notif.id !== id)
+      );
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -57,9 +59,10 @@ export function NotificationBell() {
       })
         if (!res.ok) throw new Error('Failed to fetch notifications')
         const data = await res.json()
-        setNotifications(data)
+        setNotifications(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('Error fetching notifications:', err)
+        setNotifications([]) // Ensure notifications is always an array
       } finally {
         setLoading(false)
       }
@@ -68,7 +71,7 @@ export function NotificationBell() {
     fetchNotifications()
   }, [])
 
-  const hasUnread = notifications.length > 0
+  const hasUnread = notifications && notifications.length > 0
 
   return (
     <DropdownMenu>
@@ -88,7 +91,7 @@ export function NotificationBell() {
         <DropdownMenuSeparator />
         {loading ? (
           <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-        ) : notifications.length > 0 ? (
+        ) : notifications && notifications.length > 0 ? (
           notifications.map((notif) => {
             const Icon = icons[notif.type] || Bell
             return (
