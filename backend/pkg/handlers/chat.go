@@ -248,12 +248,14 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
 
 	// Get direct chats
+	log.Printf("GetUserChats: starting for user %s", userID)
 	directChats, err := h.chatRepo.GetUserChats(userID)
 	if err != nil {
-		log.Printf("Error getting user chats: %v", err)
+		log.Printf("GetUserChats: Error getting user chats: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+	log.Printf("GetUserChats: retrieved direct chats: %v", directChats)
 
 	var enhancedChats []map[string]interface{}
 
@@ -262,9 +264,10 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		if chat.Type == "direct" {
 			participants, err := h.chatRepo.GetChatParticipants(chat.ID)
 			if err != nil {
-				log.Printf("Error getting chat participants: %v", err)
+				log.Printf("GetUserChats: Error getting chat participants: %v", err)
 				continue
 			}
+			log.Printf("GetUserChats: retrieved chat participants: %v", participants)
 
 			// Get participant details (excluding current user for display name)
 			var otherParticipant models.User
@@ -275,11 +278,12 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 						FROM users WHERE id = ?`, participantID).Scan(
 						&otherParticipant.FirstName, &otherParticipant.LastName, &otherParticipant.AvatarURL)
 					if err != nil {
-						log.Printf("Error getting participant info: %v", err)
+						log.Printf("GetUserChats: Error getting participant info: %v", err)
 					}
 					break
 				}
 			}
+			log.Printf("GetUserChats: retrieved participant info: %v", otherParticipant)
 
 			// Get last message
 			messages, err := h.messageRepo.GetChatMessages(chat.ID, time.Time{}, 1)
@@ -287,6 +291,7 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 			if err == nil && len(messages) > 0 {
 				lastMessage = &messages[0]
 			}
+			log.Printf("GetUserChats: retrieved last message: %v", lastMessage)
 
 			enhancedChat := map[string]interface{}{
 				"id":           chat.ID,
@@ -321,8 +326,9 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		AND c.deleted_at IS NULL AND gm.deleted_at IS NULL
 		ORDER BY c.created_at DESC`, userID)
 	if err != nil {
-		log.Printf("Error getting group chats: %v", err)
+		log.Printf("GetUserChats: Error getting group chats: %v", err)
 	} else {
+		log.Printf("GetUserChats: retrieved group chats")
 		defer rows.Close()
 
 		for rows.Next() {
@@ -330,16 +336,18 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 			var createdAt time.Time
 
 			if err := rows.Scan(&chatID, &chatType, &createdAt, &groupID, &groupName, &groupDescription); err != nil {
-				log.Printf("Error scanning group chat: %v", err)
+				log.Printf("GetUserChats: Error scanning group chat: %v", err)
 				continue
 			}
+			log.Printf("GetUserChats: scanned group chat: %s, %s, %s, %s, %s, %s", chatID, chatType, createdAt, groupID, groupName, groupDescription)
 
 			// Get participants
 			participants, err := h.chatRepo.GetChatParticipants(chatID)
 			if err != nil {
-				log.Printf("Error getting chat participants: %v", err)
+				log.Printf("GetUserChats: Error getting chat participants: %v", err)
 				continue
 			}
+			log.Printf("GetUserChats: retrieved chat participants: %v", participants)
 
 			// Get last message
 			messages, err := h.messageRepo.GetChatMessages(chatID, time.Time{}, 1)
@@ -347,6 +355,7 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 			if err == nil && len(messages) > 0 {
 				lastMessage = &messages[0]
 			}
+			log.Printf("GetUserChats: retrieved last message: %v", lastMessage)
 
 			groupChat := map[string]interface{}{
 				"id":          chatID,

@@ -143,7 +143,7 @@ type Notification struct {
 type Chat struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"` // "direct" or "group"
-	CreatedAt int64  `json:"created_at"`
+	CreatedAt time.Time  `json:"created_at"`
 	DeletedAt *int64 `json:"deleted_at,omitempty"`
 }
 

@@ -39,7 +39,7 @@ func (r *ChatRepository) CreateChat(chatType string, creatorID string) (*models.
 	return &models.Chat{
 		ID:        chatID,
 		Type:      chatType,
-		CreatedAt: now,
+		CreatedAt: time.Unix(now, 0),
 	}, nil
 }
 
