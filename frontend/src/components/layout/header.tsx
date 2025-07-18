@@ -1,7 +1,9 @@
-import { Search } from "lucide-react";
+import { Search, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MobileNav } from "./mobile-nav";
 import { NotificationBell } from "./notification-bell";
+import Link from 'next/link';
+import { Button } from "@/components/ui/button";
 
 export function Header() {
     return (
@@ -19,6 +21,12 @@ export function Header() {
                     </div>
                 </form>
             </div>
+            <Link href="/chat">
+                <Button variant="ghost" size="icon" className="relative">
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="sr-only">Chat</span>
+                </Button>
+            </Link>
             <NotificationBell />
         </header>
     );

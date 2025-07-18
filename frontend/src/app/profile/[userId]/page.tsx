@@ -12,8 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/user-context';
 import Link from 'next/link';
-import { UserPlus, UserCheck, UserX, Lock, Edit } from 'lucide-react';
+import { UserPlus, UserCheck, UserX, Lock, Edit, MessageCircle } from 'lucide-react';
 import { EditProfileDialog } from '@/components/edit-profile-dialog';
+import StartChatButton from '@/components/StartChatButton';
 
 
 interface ProfileData {
@@ -172,7 +173,10 @@ export default function ProfilePage() {
                             {isOwnProfile ? (
                                 <EditProfileDialog profile={user} onProfileUpdate={fetchProfile} />
                             ) : (
-                                <FollowButton targetUserId={user.id} followers={followers} />
+                                <div className="flex gap-2">
+                                    <FollowButton targetUserId={user.id} followers={followers} />
+                                    <StartChatButton userId={user.id} />
+                                </div>
                             )}
                         </div>
                         <p className="text-muted-foreground">@{user.nickname || user.id}</p>

@@ -2,6 +2,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 
 interface StartChatButtonProps {
   userId: string;
@@ -65,9 +67,10 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
   };
 
   return (
-    <button onClick={handleStartChat}>
-      Start Chat
-    </button>
+      <Button onClick={handleStartChat} variant="outline" size="sm">
+          <MessageCircle className="mr-2 h-4 w-4" />
+          Message
+      </Button>
   );
 };
 
