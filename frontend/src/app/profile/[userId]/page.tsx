@@ -175,8 +175,6 @@ export default function ProfilePage() {
                             ) : (
                                 <div className="flex gap-2">
                                     <FollowButton targetUserId={user.id} followers={followers} />
-                                    {console.log('isOwnProfile:', isOwnProfile, 'userId:', userId, 'currentUser?.id:', currentUser?.id)}
-                                    {console.log('Rendering StartChatButton')}
                                     <StartChatButton userId={user.id} />
                                 </div>
                             )}
