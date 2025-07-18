@@ -42,7 +42,7 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ targetUserId: userId }),
+        body: JSON.stringify({ recipient_id: userId }),
         credentials: 'include',
       });
 
