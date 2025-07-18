@@ -27,6 +27,7 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
       const followCheckData = await followCheckResponse.json();
 
       if (!followCheckData.isFollowing && !followCheckData.isFollowedBy) {
+        console.log('User does not follow or is followed by this user.');
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -47,10 +48,13 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
       });
 
       const data = await response.json();
+      console.log('Create chat response:', data);
 
-      if (response.ok && data.success) {
-        router.push(`/chat/${data.chatId}`);
+      if (response.ok && data.created) {
+        console.log('Navigating to chat:', data.chat_id);
+        router.push(`/chat/${data.chat_id}`);
       } else {
+        console.error('Failed to create chat. Status:', response.status, 'Data:', data);
         toast({
           variant: 'destructive',
           title: 'Error',

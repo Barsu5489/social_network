@@ -64,16 +64,25 @@ function ChatView({ chatId }: { chatId: string }) {
             try {
                 // Fetch messages
                 const messagesRes = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, { credentials: 'include' });
-                if (!messagesRes.ok) throw new Error('Failed to load messages.');
+                if (!messagesRes.ok) {
+                    console.error('Failed to load messages. Status:', messagesRes.status);
+                    throw new Error('Failed to load messages.');
+                }
                 const messagesData = await messagesRes.json();
+                console.log('Messages data:', messagesData);
                 setMessages(messagesData.messages || []);
 
                 // HACK: We don't have a dedicated /api/chats/{id} endpoint to get details.
                 // We'll get the details from the main chats list.
                 const chatsRes = await fetch(`${API_BASE_URL}/api/chats`, { credentials: 'include' });
-                if(!chatsRes.ok) throw new Error('Failed to load chat details.');
+                if(!chatsRes.ok) {
+                    console.error('Failed to load chat details. Status:', chatsRes.status);
+                    throw new Error('Failed to load chat details.');
+                }
                 const chatsData = await chatsRes.json();
+                console.log('Chat details data:', chatsData);
                 const currentChat = chatsData.chats.find((c: any) => c.id === chatId);
+                console.log('Current chat details:', currentChat);
                 setChatDetails(currentChat);
 
             } catch (error: any) {
@@ -98,7 +107,8 @@ function ChatView({ chatId }: { chatId: string }) {
             console.log('WebSocket connected');
         };
 
-        ws.current.onmessage = (event) => {
+       ws.current.onmessage = (event) => {
+            console.log('WebSocket message received:', event.data);
             try {
                 const messageData = JSON.parse(event.data);
                 if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
@@ -120,10 +130,12 @@ function ChatView({ chatId }: { chatId: string }) {
             console.log('WebSocket disconnected');
         };
 
-        ws.current.onerror = (error) => {
+       ws.current.onerror = (error) => {
             console.error('WebSocket error:', error);
             toast({ variant: 'destructive', title: 'Chat Error', description: 'Connection to the chat server was lost.' });
         };
+
+        console.log('WebSocket setup complete');
 
         // Cleanup on unmount
         return () => {
@@ -145,10 +157,12 @@ function ChatView({ chatId }: { chatId: string }) {
             });
 
             if (!response.ok) {
+                console.error('Failed to send message. Status:', response.status);
                 throw new Error('Failed to send message.');
             }
 
             const sentMessage = await response.json();
+            console.log('Sent message:', sentMessage);
             // Optimistically add the message for the sender.
             // Backend broadcasts to others.
             setMessages((prev) => [...prev, sentMessage.message]);
