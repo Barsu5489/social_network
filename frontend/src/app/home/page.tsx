@@ -31,7 +31,7 @@ interface Group {
     updated_at: number;
 }
 
-async function getPosts(sessionCookie: ReturnType<typeof cookies>['get']) {
+async function getPosts(sessionCookie: { name: string; value: string } | undefined) {
   if (!sessionCookie) return [];
   try {
     const res = await fetch(`${API_BASE_URL}/posts`, { 
@@ -54,7 +54,7 @@ async function getPosts(sessionCookie: ReturnType<typeof cookies>['get']) {
   }
 }
 
-async function getGroups(sessionCookie: ReturnType<typeof cookies>['get']) {
+async function getGroups(sessionCookie: { name: string; value: string } | undefined) {
     if (!sessionCookie) return [];
     try {
         const res = await fetch(`${API_BASE_URL}/api/groups`, {
@@ -77,7 +77,7 @@ async function getGroups(sessionCookie: ReturnType<typeof cookies>['get']) {
 
 
 export default async function HomePage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('social-network-session');
 
   const [posts, groups] = await Promise.all([

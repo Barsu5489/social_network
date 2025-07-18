@@ -161,3 +161,39 @@ func (h *FollowHandler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(following)
 }
+
+// CheckFollowStatus checks if the current user is following a specific user and vice versa
+func (h *FollowHandler) CheckFollowStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	targetUserID := r.URL.Query().Get("targetUserId")
+	if targetUserID == "" {
+		http.Error(w, "targetUserId parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	isFollowing, isFollowedBy, err := h.FollowModel.CheckFollowStatus(ctx, userID, targetUserID)
+	if err != nil {
+		log.Printf("Failed to check follow status: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]bool{
+		"isFollowing":  isFollowing,
+		"isFollowedBy": isFollowedBy,
+	})
+}

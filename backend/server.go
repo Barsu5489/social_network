@@ -87,6 +87,7 @@ func main() {
 	router.HandleFunc("/unfollow/{userID}", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
 	router.HandleFunc("/followers", auth.RequireAuth(followHandler.GetFollowers)).Methods("GET")
 	router.HandleFunc("/following", auth.RequireAuth(followHandler.GetFollowing)).Methods("GET")
+	router.HandleFunc("/api/follow/check", auth.RequireAuth(followHandler.CheckFollowStatus)).Methods("GET")
 
 	// Public routes without middleware
 	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
