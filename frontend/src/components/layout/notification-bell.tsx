@@ -55,9 +55,12 @@ export function NotificationBell() {
     const fetchNotifications = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-        credentials: 'include'
-      })
-        if (!res.ok) throw new Error('Failed to fetch notifications')
+          credentials: 'include'
+        })
+        if (!res.ok) {
+          console.error('Notifications fetch failed with status:', res.status);
+          throw new Error('Failed to fetch notifications')
+        }
         const data = await res.json()
         setNotifications(Array.isArray(data) ? data : [])
       } catch (err) {

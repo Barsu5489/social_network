@@ -34,7 +34,7 @@ interface Group {
 async function getPosts(sessionCookie: { name: string; value: string } | undefined) {
   if (!sessionCookie) return [];
   try {
-    const res = await fetch(`${API_BASE_URL}/posts`, { 
+    const res = await fetch(`${API_BASE_URL}/api/posts`, { 
       headers: {
         'Cookie': `${sessionCookie.name}=${sessionCookie.value}`,
       },

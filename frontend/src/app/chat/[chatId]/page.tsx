@@ -39,10 +39,10 @@ function ChatView({ chatId }: { chatId: string }) {
     const { user } = useUser();
     const { toast } = useToast();
     const [messages, setMessages] = useState<Message[]>([]);
-    const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
     const [newMessage, setNewMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
     const ws = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -97,86 +97,103 @@ function ChatView({ chatId }: { chatId: string }) {
 
     // Setup WebSocket
     useEffect(() => {
-        if (!chatId || !user) return;
-        
-        // Connect to backend WebSocket - fix the port
-        const wsUrl = 'ws://localhost:3000/ws';
-        console.log('Attempting WebSocket connection to:', wsUrl);
-        ws.current = new WebSocket(wsUrl);
+        if (!user?.id || !chatId) return;
 
+        console.log('Attempting WebSocket connection to:', `ws://localhost:3000/ws`);
+        ws.current = new WebSocket(`ws://localhost:3000/ws`);
+        
         ws.current.onopen = () => {
             console.log('WebSocket connected to backend');
+            if (ws.current && user?.id) {
+                ws.current.send(JSON.stringify({
+                    type: 'join_chat',
+                    chat_id: chatId,
+                    user_id: user.id
+                }));
+            }
         };
 
         ws.current.onmessage = (event) => {
             console.log('WebSocket message received:', event.data);
             try {
                 const messageData = JSON.parse(event.data);
+                
                 if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
                     const newMessage = messageData.data;
                     setMessages((prevMessages) => {
-                        // Avoid adding duplicate messages
                         if (prevMessages.some(m => m.id === newMessage.id)) {
                             return prevMessages;
                         }
                         return [...prevMessages, newMessage];
                     });
+                } else if (messageData.type === 'notification') {
+                    console.log('Received notification:', messageData.data);
                 }
             } catch (error) {
                 console.error('Failed to parse WebSocket message:', error);
             }
         };
 
+        ws.current.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
         ws.current.onclose = () => {
             console.log('WebSocket disconnected');
         };
 
-        ws.current.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            toast({ variant: 'destructive', title: 'Chat Error', description: 'Connection to the chat server was lost.' });
-        };
-
         return () => {
-            ws.current?.close();
+            if (ws.current) {
+                ws.current.close();
+            }
         };
-    }, [chatId, user, toast]);
+    }, [user?.id, chatId]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        console.log('handleSendMessage called with:', { newMessage, user, chatId });
+    const handleSendMessage = async (messageContent: string) => {
+        if (!user?.id || !chatId || !messageContent.trim() || isSending) return;
         
-        if (!newMessage.trim() || !user) {
-            console.log('Message validation failed:', { hasMessage: !!newMessage.trim(), hasUser: !!user });
-            return;
-        }
-
-        console.log('Sending message to:', `${API_BASE_URL}/api/chats/${chatId}/messages`);
         setIsSending(true);
+        
         try {
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
+            const url = `${API_BASE_URL}/api/chats/${chatId}/messages`;
+            
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: newMessage }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 credentials: 'include',
+                body: JSON.stringify({
+                    content: messageContent.trim(),
+                    type: 'text'
+                }),
             });
 
-            console.log('Send message response status:', response.status);
-            
             if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Send message failed:', errorData);
-                throw new Error('Failed to send message.');
+                throw new Error(`Failed to send message: ${response.status}`);
             }
 
             const responseData = await response.json();
-            console.log('Send message response data:', responseData);
-
-            // Don't add message optimistically - let WebSocket handle it
-            setNewMessage('');
-            console.log('Message sent successfully, cleared input');
-        } catch (error: any) {
+            
+            if (responseData.success && responseData.message) {
+                // Message will be added via WebSocket, but add locally for immediate feedback
+                setMessages(prevMessages => {
+                    if (prevMessages.some(m => m.id === responseData.message.id)) {
+                        return prevMessages;
+                    }
+                    return [...prevMessages, responseData.message];
+                });
+                
+                // Clear the input after successful send
+                setNewMessage('');
+            }
+        } catch (error) {
             console.error('Error sending message:', error);
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            toast({ 
+                variant: 'destructive', 
+                title: 'Error', 
+                description: 'Failed to send message. Please try again.' 
+            });
         } finally {
             setIsSending(false);
         }
@@ -236,7 +253,15 @@ function ChatView({ chatId }: { chatId: string }) {
 
             {/* Message Input */}
             <div className="p-3 border-t">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (newMessage.trim()) {
+                            handleSendMessage(newMessage);
+                        }
+                    }}
+                    className="flex items-center gap-2"
+                >
                     <Input
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
@@ -244,6 +269,14 @@ function ChatView({ chatId }: { chatId: string }) {
                         disabled={isSending}
                         autoComplete="off"
                         className="bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-ring"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (newMessage.trim()) {
+                                    handleSendMessage(newMessage);
+                                }
+                            }
+                        }}
                     />
                     <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
                         <SendHorizontal className="h-5 w-5" />
@@ -271,3 +304,5 @@ export default function SingleChatPage() {
         </div>
     )
 }
+const [isLoading, setIsLoading] = useState(false);
+

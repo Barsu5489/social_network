@@ -9,13 +9,16 @@ import (
 	"time"
 
 	"social-nework/pkg/models"
+	"social-nework/pkg/websocket"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type FollowHandler struct {
 	FollowModel       *models.FollowModel
 	NotificationModel *models.NotificationModel
+	Hub               *websocket.Hub
 }
 
 func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +40,11 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if followerID == followedID {
+		http.Error(w, "Cannot follow yourself", http.StatusBadRequest)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -53,20 +61,29 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 
 	// Create a notification for the user being followed
 	notification := models.Notification{
+		ID:          uuid.New().String(),
 		UserID:      followedID,
 		Type:        "new_follower",
 		ReferenceID: followerID,
 		IsRead:      false,
 		CreatedAt:   time.Now(),
 	}
+
 	_, err = h.NotificationModel.Insert(ctx, notification)
 	if err != nil {
 		log.Printf("Failed to create notification: %v", err)
-		// Decide if you should rollback the follow or just log the error
+	} else {
+		// Send real-time notification if hub is available
+		if h.Hub != nil {
+			h.Hub.SendNotification(followedID, notification, map[string]interface{}{
+				"follower_id": followerID,
+				"action":      "followed",
+			})
+		}
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Followed successfully"})
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Successfully followed user"))
 }
 
 func (h *FollowHandler) Unfollow(w http.ResponseWriter, r *http.Request) {

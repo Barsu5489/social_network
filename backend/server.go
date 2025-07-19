@@ -17,7 +17,7 @@ import (
 	"social-nework/pkg/websocket"
 )
 
-func setupChatSystem(db *sql.DB, router *mux.Router) (*websocket.Hub, *repository.ChatRepository, *repository.GroupRepository) {
+func setupChatSystem(db *sql.DB, router *mux.Router, notificationModel *models.NotificationModel) (*websocket.Hub, *repository.ChatRepository, *repository.GroupRepository) {
 	// Initialize repositories
 	chatRepo := &repository.ChatRepository{DB: db}
 	messageRepo := &repository.MessageRepository{DB: db}
@@ -27,7 +27,7 @@ func setupChatSystem(db *sql.DB, router *mux.Router) (*websocket.Hub, *repositor
 	hub := websocket.NewHub(db, messageRepo, chatRepo)
 	go hub.Run() // Start the hub in a goroutine
 	// Initialize HTTP handlers with all required repositories
-	chatHandler := handlers.NewChatHandler(chatRepo, messageRepo, groupRepo, hub)
+	chatHandler := handlers.NewChatHandler(chatRepo, messageRepo, groupRepo, hub, notificationModel)
 
 	// Register chat routes
 	registerChatRoutes(router, chatHandler)
@@ -56,6 +56,29 @@ func registerChatRoutes(router *mux.Router, handler *handlers.ChatHandler) {
 	router.HandleFunc("/api/groups/{groupId}/chat", auth.RequireAuth(handler.GetGroupChatForGroup)).Methods("GET")
 }
 
+func registerGroupRoutes(router *mux.Router, handler *groups.GroupHandler) {
+	// Group management routes
+	router.HandleFunc("/api/groups", auth.RequireAuth(handler.GetAllGroups)).Methods("GET")
+	router.HandleFunc("/api/groups", auth.RequireAuth(handler.CreateGroup)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/join", auth.RequireAuth(handler.JoinGroup)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/leave", auth.RequireAuth(handler.LeaveGroup)).Methods("POST")
+	router.HandleFunc("/api/groups/join/{groupId}", auth.RequireAuth(handler.RequestToJoinGroup)).Methods("POST")
+	
+	// Group content routes
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(handler.GetGroupPosts)).Methods("GET")
+	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(handler.CreateGroupPost)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(handler.GetGroupEvents)).Methods("GET")
+	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(handler.CreateEvent)).Methods("POST")
+	router.HandleFunc("/api/groups/{groupId}/events/{eventId}/rsvp", auth.RequireAuth(handler.RSVPEvent)).Methods("POST")
+	
+	// Group invitation routes
+	router.HandleFunc("/api/groups/invite", auth.RequireAuth(handler.InviteToGroup)).Methods("POST")
+	router.HandleFunc("/api/invitations/{id}/respond", auth.RequireAuth(handler.RespondToInvitation)).Methods("POST")
+	
+	// Group chat route
+	router.HandleFunc("/api/groups/{groupId}/chat", auth.RequireAuth(handler.GetGroupChat)).Methods("GET")
+}
+
 func main() {
 	// Initialize SQLite database
 	db, err := sqlite.NewDB("social_network.db")
@@ -73,84 +96,56 @@ func main() {
 	router := mux.NewRouter()
 
 	// Setup chat system with all routes and get the required instances
-	hub, chatRepo, groupRepo := setupChatSystem(db, router)
+	hub, chatRepo, groupRepo := setupChatSystem(db, router, notificationModel)
+
+	// Handlers with hub for real-time notifications
+	authHandler := &handlers.AuthHandler{UserModel: userModel}
+	followHandler := &handlers.FollowHandler{
+		FollowModel:       followModel, 
+		NotificationModel: notificationModel,
+		Hub:               hub,
+	}
+	notificationHandler := handlers.NewNotificationHandler(notificationModel)
 
 	// Now create the GroupHandler with all required dependencies
 	groupHandler := groups.NewGroupHandler(db, groupRepo, chatRepo, hub, notificationModel)
 
-	// Handlers
-	authHandler := &handlers.AuthHandler{UserModel: userModel}
-	followHandler := &handlers.FollowHandler{FollowModel: followModel, NotificationModel: notificationModel}
-
-	// Follow routes with middleware RequireAuth
-	router.HandleFunc("/follow/{userID}", auth.RequireAuth(followHandler.Follow)).Methods("POST")
-	router.HandleFunc("/unfollow/{userID}", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
-	router.HandleFunc("/followers", auth.RequireAuth(followHandler.GetFollowers)).Methods("GET")
-	router.HandleFunc("/following", auth.RequireAuth(followHandler.GetFollowing)).Methods("GET")
-	router.HandleFunc("/api/follow/check", auth.RequireAuth(followHandler.CheckFollowStatus)).Methods("GET")
-
-	// Public routes without middleware
+	// Auth routes
 	router.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	router.HandleFunc("/api/login", authHandler.Login).Methods("POST")
 	router.HandleFunc("/api/logout", authHandler.Logout).Methods("POST")
-
-	// Post routes with middleware
-	router.HandleFunc("/post", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
-	router.HandleFunc("/followPosts", auth.RequireAuth(handlers.FollowingPosts(db))).Methods("GET")
-	router.HandleFunc("/delPost/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
-	router.HandleFunc("/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
-
-	// Comment routes
-	router.HandleFunc("/comment/{post_id}", auth.RequireAuth(handlers.NewComment(db))).Methods("POST")
-	router.HandleFunc("/comments/{post_id}", auth.RequireAuth(handlers.GetPostComments(db))).Methods("GET")
-
-	// User Profile routes
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.GetProfile(db))).Methods("GET")
 	router.HandleFunc("/api/profile", auth.RequireAuth(handlers.UpdateProfile(db))).Methods("PUT")
 
+	// Follow routes
+	router.HandleFunc("/api/users/{userID}/follow", auth.RequireAuth(followHandler.Follow)).Methods("POST")
+	router.HandleFunc("/api/users/{userID}/unfollow", auth.RequireAuth(followHandler.Unfollow)).Methods("POST")
+	router.HandleFunc("/api/follow/check", auth.RequireAuth(followHandler.CheckFollowStatus)).Methods("GET")
+
 	// Notification routes
-	router.HandleFunc("/api/notifications", auth.RequireAuth(handlers.GetNotifications(db))).Methods("GET")
-	router.HandleFunc("/api/notifications/{id}", auth.RequireAuth(handlers.MarkNotificationAsRead(db))).Methods("PUT")
+	router.HandleFunc("/api/notifications", auth.RequireAuth(notificationHandler.GetNotifications)).Methods("GET")
+	router.HandleFunc("/api/notifications/mark-read", auth.RequireAuth(notificationHandler.MarkAsRead)).Methods("POST")
 
-	// todo - fix likes models and handlers
-	// Like a post
-	// Like routes
-	router.HandleFunc("/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods(http.MethodPost)
-	router.HandleFunc("/posts/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods(http.MethodPost)
-	router.HandleFunc("/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods(http.MethodGet)
-	router.HandleFunc("/users/{user_id}/likes", auth.RequireAuth(handlers.GetUserLikedPosts(db))).Methods(http.MethodGet)
+	// Group routes
+	registerGroupRoutes(router, groupHandler)
 
-	// Group Management Routes
-	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.CreateGroup)).Methods("POST")
-	router.HandleFunc("/api/groups", auth.RequireAuth(groupHandler.GetAllGroups)).Methods("GET")
+	// Posts routes
+	router.HandleFunc("/api/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
+	router.HandleFunc("/api/posts", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
+	router.HandleFunc("/api/posts/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
 
-	// Group Invitation Routes
-	router.HandleFunc("/api/groups/invite", auth.RequireAuth(groupHandler.InviteToGroup)).Methods("POST")
-	router.HandleFunc("/api/groups/join/{groupId}", auth.RequireAuth(groupHandler.RequestToJoinGroup)).Methods("POST")
-	router.HandleFunc("/api/invitations/{id}/respond", auth.RequireAuth(groupHandler.RespondToInvitation)).Methods("PUT")
-
-	// Group Content Routes
-	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.CreateGroupPost)).Methods("POST")
-	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(groupHandler.GetGroupPosts)).Methods("GET")
-
-	// Group Event Routes
-	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.CreateEvent)).Methods("POST")
-	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(groupHandler.GetGroupEvents)).Methods("GET")
-	router.HandleFunc("/api/events/{eventId}/rsvp", auth.RequireAuth(groupHandler.RSVPEvent)).Methods("POST")
-
-	// CORS MIDDLEWARE
-	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"}, // frontend origin
+	// Enable CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
 
-	// Wrap the router with CORS middleware
-	handler := corsHandler.Handler(router)
+	handler := c.Handler(router)
 
-	// Start server
-	if err := http.ListenAndServe(":3000", handler); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	log.Println("Server starting on :3000")
+	log.Fatal(http.ListenAndServe(":3000", handler))
 }

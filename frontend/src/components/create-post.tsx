@@ -46,7 +46,7 @@ export function CreatePost({ groupId }: { groupId?: string }) {
     
     // Determine the URL and body based on whether it's a group post
     const isGroupPost = !!groupId;
-    const url = isGroupPost ? `${API_BASE_URL}/api/groups/${groupId}/posts` : `${API_BASE_URL}/post`;
+    const url = isGroupPost ? `${API_BASE_URL}/api/groups/${groupId}/posts` : `${API_BASE_URL}/api/posts`;
     const body = isGroupPost ? JSON.stringify({ content }) : JSON.stringify({ content, privacy });
 
     try {

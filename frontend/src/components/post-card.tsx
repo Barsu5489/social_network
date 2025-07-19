@@ -73,7 +73,7 @@ export function PostCard({ id, user_id, content, privacy, created_at, likes_coun
         setLikeCount(newLikeCount);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/posts/${id}/like`, {
+            const response = await fetch(`${API_BASE_URL}/api/posts/${id}/like`, {
                 method: newIsLiked ? 'POST' : 'DELETE',
                 credentials: 'include',
             });
@@ -102,7 +102,7 @@ export function PostCard({ id, user_id, content, privacy, created_at, likes_coun
     
     const handleDelete = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/delPost/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/posts/${id}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -156,7 +156,7 @@ export function PostCard({ id, user_id, content, privacy, created_at, likes_coun
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <p>{formattedDate}</p>
             <span>&middot;</span>
-            <PrivacyIcon className="h-4 w-4" title={privacy} />
+            <PrivacyIcon className="h-4 w-4" />
           </div>
         </div>
         

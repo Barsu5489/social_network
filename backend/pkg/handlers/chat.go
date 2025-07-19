@@ -18,18 +18,20 @@ import (
 )
 
 type ChatHandler struct {
-	chatRepo    *repository.ChatRepository
-	messageRepo *repository.MessageRepository
-	groupRepo   *repository.GroupRepository // Add this for group chat integration
-	hub         *websocket.Hub
+	chatRepo         *repository.ChatRepository
+	messageRepo      *repository.MessageRepository
+	groupRepo        *repository.GroupRepository
+	notificationRepo *models.NotificationModel
+	hub              *websocket.Hub
 }
 
-func NewChatHandler(chatRepo *repository.ChatRepository, messageRepo *repository.MessageRepository, groupRepo *repository.GroupRepository, hub *websocket.Hub) *ChatHandler {
+func NewChatHandler(chatRepo *repository.ChatRepository, messageRepo *repository.MessageRepository, groupRepo *repository.GroupRepository, hub *websocket.Hub, notificationRepo *models.NotificationModel) *ChatHandler {
 	return &ChatHandler{
-		chatRepo:    chatRepo,
-		messageRepo: messageRepo,
-		groupRepo:   groupRepo,
-		hub:         hub,
+		chatRepo:         chatRepo,
+		messageRepo:      messageRepo,
+		groupRepo:        groupRepo,
+		notificationRepo: notificationRepo,
+		hub:              hub,
 	}
 }
 
