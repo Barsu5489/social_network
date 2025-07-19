@@ -32,12 +32,12 @@ func setupChatSystem(db *sql.DB, router *mux.Router) (*websocket.Hub, *repositor
 	// Register chat routes
 	registerChatRoutes(router, chatHandler)
 
-	// Register WebSocket endpoint
-	router.HandleFunc("/ws", websocket.WebSocketAuth(hub, func(w http.ResponseWriter, r *http.Request) {
+	// WebSocket endpoint with authentication
+	router.HandleFunc("/ws", auth.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("WebSocket connection attempt from %s", r.RemoteAddr)
 		websocket.ServeWS(hub, w, r)
 	})).Methods("GET")
 
-	// Return the instances so they can be used elsewhere
 	return hub, chatRepo, groupRepo
 }
 

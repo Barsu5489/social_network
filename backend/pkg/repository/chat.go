@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"social-nework/pkg/models"
@@ -18,13 +19,28 @@ type ChatRepository struct {
 func (r *ChatRepository) CreateChat(chatType string, creatorID string) (*models.Chat, error) {
 	chatID := uuid.New().String()
 	now := time.Now().Unix()
+	
+	log.Printf("CreateChat: Inserting chat %s with Unix timestamp: %d", chatID, now)
 
 	_, err := r.DB.Exec(`
 		INSERT INTO chats (id, type, created_at)
 		VALUES (?, ?, ?)`,
 		chatID, chatType, now)
 	if err != nil {
+		log.Printf("CreateChat: Insert error: %v", err)
 		return nil, err
+	}
+
+	// Verify what was actually inserted
+	var storedCreatedAt interface{}
+	var storedType string
+	err = r.DB.QueryRow(`
+		SELECT created_at, typeof(created_at) 
+		FROM chats WHERE id = ?`, chatID).Scan(&storedCreatedAt, &storedType)
+	if err != nil {
+		log.Printf("CreateChat: Verification query failed: %v", err)
+	} else {
+		log.Printf("CreateChat: Stored created_at: %v (type: %s)", storedCreatedAt, storedType)
 	}
 
 	// Add creator as participant
@@ -142,6 +158,28 @@ func (r *ChatRepository) GetChatParticipantsWithDetails(chatID string) ([]models
 
 // GetUserChats retrieves all chats for a user
 func (r *ChatRepository) GetUserChats(userID string) ([]models.Chat, error) {
+	// First, let's see what's actually in the database
+	debugRows, err := r.DB.Query(`
+		SELECT c.id, c.type, c.created_at, typeof(c.created_at) as type_info
+		FROM chats c
+		JOIN chat_participants cp ON c.id = cp.chat_id
+		WHERE cp.user_id = ? AND c.deleted_at IS NULL AND cp.deleted_at IS NULL
+		ORDER BY c.created_at DESC LIMIT 3`, userID)
+	if err != nil {
+		log.Printf("GetUserChats: Debug query failed: %v", err)
+	} else {
+		defer debugRows.Close()
+		log.Printf("GetUserChats: Debug - checking what's in database:")
+		for debugRows.Next() {
+			var id, chatType, createdAt, typeInfo string
+			if err := debugRows.Scan(&id, &chatType, &createdAt, &typeInfo); err != nil {
+				log.Printf("GetUserChats: Debug scan error: %v", err)
+			} else {
+				log.Printf("GetUserChats: Debug - Chat %s: type=%s, created_at=%s, sql_type=%s", id, chatType, createdAt, typeInfo)
+			}
+		}
+	}
+
 	rows, err := r.DB.Query(`
 		SELECT c.id, c.type, c.created_at
 		FROM chats c
@@ -156,9 +194,12 @@ func (r *ChatRepository) GetUserChats(userID string) ([]models.Chat, error) {
 	var chats []models.Chat
 	for rows.Next() {
 		var chat models.Chat
-		if err := rows.Scan(&chat.ID, &chat.Type, &chat.CreatedAt); err != nil {
+		var createdAtUnix int64
+		if err := rows.Scan(&chat.ID, &chat.Type, &createdAtUnix); err != nil {
+			log.Printf("GetUserChats: Scan error for chat %s: %v", chat.ID, err)
 			return nil, err
 		}
+		chat.CreatedAt = time.Unix(createdAtUnix, 0)
 		chats = append(chats, chat)
 	}
 	return chats, nil
@@ -199,14 +240,16 @@ func (r *ChatRepository) IsUserInChat(chatID, userID string) (bool, error) {
 // GetChatInfo retrieves basic chat information
 func (r *ChatRepository) GetChatInfo(chatID string) (*models.Chat, error) {
 	var chat models.Chat
+	var createdAtUnix int64
 	err := r.DB.QueryRow(`
 		SELECT id, type, created_at
 		FROM chats
 		WHERE id = ? AND deleted_at IS NULL`, chatID).Scan(
-		&chat.ID, &chat.Type, &chat.CreatedAt)
+		&chat.ID, &chat.Type, &createdAtUnix)
 	if err != nil {
 		return nil, err
 	}
+	chat.CreatedAt = time.Unix(createdAtUnix, 0)
 	return &chat, nil
 }
 
@@ -220,7 +263,7 @@ func (r *ChatRepository) CreateGroupChat(groupID, creatorID string) (string, err
 	defer tx.Rollback()
 
 	chatID := uuid.New().String()
-	now := time.Now()
+	now := time.Now().Unix()
 
 	// Create the chat
 	_, err = tx.Exec(`
@@ -339,16 +382,6 @@ func (r *ChatRepository) GetChatType(chatID string) (string, error) {
 		SELECT type FROM chats 
 		WHERE id = ? AND deleted_at IS NULL`, chatID).Scan(&chatType)
 	return chatType, err
-}
-
-// UpdateChatLastActivity updates the last activity timestamp for ordering
-func (r *ChatRepository) UpdateChatLastActivity(chatID string) error {
-	_, err := r.DB.Exec(`
-		UPDATE chats 
-		SET updated_at = ? 
-		WHERE id = ?`,
-		time.Now(), chatID)
-	return err
 }
 
 // GetChatCount returns the number of chats a user is in

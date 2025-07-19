@@ -46,13 +46,17 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("WebSocket: User %s attempting to connect", userID)
+
 	// Fetch user chat IDs from the repository
 	chatIDs, err := hub.chatRepo.GetUserChatIDs(userID)
 	if err != nil {
-		log.Printf("Failed to get user chats: %v", err)
+		log.Printf("Failed to get user chats for %s: %v", userID, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("WebSocket: User %s has chat IDs: %v", userID, chatIDs)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -70,8 +74,10 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	for _, chatID := range chatIDs {
 		client.Chats[chatID] = true
+		log.Printf("WebSocket: Added chat %s to client %s", chatID, userID)
 	}
 
+	log.Printf("WebSocket: Registering client %s", userID)
 	hub.Register <- client
 
 	go client.writePump()
@@ -110,7 +116,10 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		c.Conn.Close()
+		log.Printf("WritePump: Client %s disconnected", c.UserID)
 	}()
+
+	log.Printf("WritePump: Started for client %s", c.UserID)
 
 	for {
 		select {
@@ -121,14 +130,16 @@ func (c *Client) writePump() {
 				return
 			}
 
+			log.Printf("WritePump: Sending message to client %s: %+v", c.UserID, message)
 			if err := c.Conn.WriteJSON(message); err != nil {
-				log.Println("Write error:", err)
+				log.Printf("WritePump: Write error for client %s: %v", c.UserID, err)
 				return
 			}
 
 		case <-ticker.C:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("WritePump: Ping error for client %s: %v", c.UserID, err)
 				return
 			}
 		}

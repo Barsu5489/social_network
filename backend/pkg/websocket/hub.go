@@ -163,46 +163,62 @@ func (h *Hub) BroadcastToChatRoom(chatID string, message MessagePayload, exclude
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
+	log.Printf("BroadcastToChatRoom: Broadcasting to chat %s, excluding %s", chatID, excludeUserID)
+
 	chatRoom, exists := h.ChatRooms[chatID]
 	if !exists {
-		log.Printf("Chat room %s not found for broadcast", chatID)
+		log.Printf("BroadcastToChatRoom: Chat room %s not found for broadcast", chatID)
 		return
 	}
 
+	log.Printf("BroadcastToChatRoom: Chat room %s has %d members", chatID, len(chatRoom.Members))
+
 	for userID, client := range chatRoom.Members {
 		if userID == excludeUserID {
+			log.Printf("BroadcastToChatRoom: Skipping sender %s", userID)
 			continue
 		}
 
+		log.Printf("BroadcastToChatRoom: Sending to user %s", userID)
 		select {
 		case client.Send <- message:
+			log.Printf("BroadcastToChatRoom: Message sent to user %s", userID)
 		default:
-			log.Printf("Client %s send buffer full during broadcast", userID)
+			log.Printf("BroadcastToChatRoom: Client %s send buffer full during broadcast", userID)
 		}
 	}
 }
 
 // Complete the initializeUserChatRooms method that was stubbed
 func (h *Hub) initializeUserChatRooms(client *Client) {
+	log.Printf("initializeUserChatRooms: Initializing chat rooms for user %s", client.UserID)
+	
 	// Get all chat IDs for the user from database
 	chatIDs, err := h.chatRepo.GetUserChatIDs(client.UserID)
 	if err != nil {
-		log.Printf("Error getting user chat IDs: %v", err)
+		log.Printf("initializeUserChatRooms: Error getting user chat IDs: %v", err)
 		return
 	}
 
+	log.Printf("initializeUserChatRooms: User %s has %d chats", client.UserID, len(chatIDs))
+
 	// Initialize or join each chat room
 	for _, chatID := range chatIDs {
+		log.Printf("initializeUserChatRooms: Processing chat %s", chatID)
+		
 		// Get chat participants
 		participants, err := h.chatRepo.GetChatParticipants(chatID)
 		if err != nil {
-			log.Printf("Error getting chat participants for %s: %v", chatID, err)
+			log.Printf("initializeUserChatRooms: Error getting chat participants for %s: %v", chatID, err)
 			continue
 		}
+
+		log.Printf("initializeUserChatRooms: Chat %s has participants: %v", chatID, participants)
 
 		// Create chat room if it doesn't exist
 		chatRoom, exists := h.ChatRooms[chatID]
 		if !exists {
+			log.Printf("initializeUserChatRooms: Creating new chat room %s", chatID)
 			chatRoom = &ChatRoom{
 				ID:        chatID,
 				Type:      "direct", // You might want to query this from database
@@ -212,20 +228,12 @@ func (h *Hub) initializeUserChatRooms(client *Client) {
 			h.ChatRooms[chatID] = chatRoom
 		}
 
-		// Add client to chat room
+		// Add this client to the chat room
 		chatRoom.Members[client.UserID] = client
-
-		// Update client's chat list
 		client.Chats[chatID] = true
-
-		// Add other connected participants to the room
-		for _, participantID := range participants {
-			if participantID != client.UserID {
-				if otherClient, ok := h.Clients[participantID]; ok {
-					chatRoom.Members[participantID] = otherClient
-				}
-			}
-		}
+		
+		log.Printf("initializeUserChatRooms: Added user %s to chat room %s. Room now has %d members", 
+			client.UserID, chatID, len(chatRoom.Members))
 	}
 }
 

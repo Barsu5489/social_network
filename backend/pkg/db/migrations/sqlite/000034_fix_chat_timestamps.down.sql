@@ -1,0 +1,2 @@
+-- This migration is not easily reversible due to data conversion
+-- Manual intervention would be required

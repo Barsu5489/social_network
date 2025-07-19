@@ -39,7 +39,10 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatID := vars["chatId"]
 
+	log.Printf("SendMessage: userID=%s, chatID=%s", userID, chatID)
+
 	if chatID == "" {
+		log.Printf("SendMessage: Chat ID is required")
 		http.Error(w, "Chat ID is required", http.StatusBadRequest)
 		return
 	}
@@ -50,11 +53,15 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("SendMessage: Invalid request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("SendMessage: content=%s, type=%s", req.Content, req.Type)
+
 	if req.Content == "" {
+		log.Printf("SendMessage: Message content is required")
 		http.Error(w, "Message content is required", http.StatusBadRequest)
 		return
 	}
@@ -62,15 +69,18 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	// Verify user is in chat
 	isInChat, err := h.chatRepo.IsUserInChat(chatID, userID)
 	if err != nil {
-		log.Printf("Error checking chat membership: %v", err)
+		log.Printf("SendMessage: Error checking chat membership: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	if !isInChat {
+		log.Printf("SendMessage: User %s not in chat %s", userID, chatID)
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}
+
+	log.Printf("SendMessage: User verified in chat, creating message")
 
 	// Create message
 	message := &models.Message{
@@ -81,12 +91,16 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		SentAt:   time.Now().Unix(),
 	}
 
+	log.Printf("SendMessage: Created message with ID=%s", message.ID)
+
 	// Save message to database
 	if err := h.messageRepo.SaveMessage(message); err != nil {
-		log.Printf("Error saving message: %v", err)
+		log.Printf("SendMessage: Error saving message: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("SendMessage: Message saved to database")
 
 	// Get sender info for websocket broadcast
 	var sender models.User
@@ -95,9 +109,11 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		FROM users WHERE id = ?`, userID).Scan(
 		&sender.FirstName, &sender.LastName, &sender.AvatarURL)
 	if err != nil {
-		log.Printf("Error getting sender info: %v", err)
+		log.Printf("SendMessage: Error getting sender info: %v", err)
 	}
 	message.Sender = sender
+
+	log.Printf("SendMessage: Retrieved sender info: %+v", sender)
 
 	// Broadcast message via websocket
 	wsMessage := websocket.MessagePayload{
@@ -117,11 +133,12 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	log.Printf("SendMessage: Broadcasting WebSocket message to chat %s", chatID)
 	h.hub.BroadcastToChatRoom(chatID, wsMessage, userID)
 
 	// Return the saved message
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	responseData := map[string]interface{}{
 		"message": map[string]interface{}{
 			"id":        message.ID,
 			"chat_id":   message.ChatID,
@@ -135,7 +152,10 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		"success": true,
-	})
+	}
+	
+	log.Printf("SendMessage: Returning response: %+v", responseData)
+	json.NewEncoder(w).Encode(responseData)
 }
 
 // CreateDirectChat creates a direct chat between two users
@@ -320,7 +340,7 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 
 	// Get group chats
 	rows, err := h.chatRepo.DB.Query(`
-		SELECT c.id, c.type, strftime('%Y-%m-%d %H:%M:%S', c.created_at), g.id, g.name, g.description
+		SELECT c.id, c.type, c.created_at, g.id, g.name, g.description
 		FROM chats c
 		JOIN group_chats gc ON c.id = gc.chat_id
 		JOIN groups g ON gc.group_id = g.id
@@ -336,20 +356,15 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 
 		for rows.Next() {
-			var chatID, chatType, groupID, groupName, groupDescription, createdAtStr string
+			var chatID, chatType, groupID, groupName, groupDescription string
+			var createdAtUnix int64
 
-			if err := rows.Scan(&chatID, &chatType, &createdAtStr, &groupID, &groupName, &groupDescription); err != nil {
+			if err := rows.Scan(&chatID, &chatType, &createdAtUnix, &groupID, &groupName, &groupDescription); err != nil {
 				log.Printf("GetUserChats: Error scanning group chat: %v", err)
-				http.Error(w, "Internal server error: "+err.Error(), http.StatusInternalServerError)
 				continue
 			}
 
-			createdAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr)
-			if err != nil {
-				log.Printf("GetUserChats: Error parsing time: %v", err)
-				http.Error(w, "Internal server error: "+err.Error(), http.StatusInternalServerError)
-				continue
-			}
+			createdAt := time.Unix(createdAtUnix, 0)
 			log.Printf("GetUserChats: scanned group chat: %s, %s, %v, %s, %s, %s", chatID, chatType, createdAt, groupID, groupName, groupDescription)
 
 			// Get participants
@@ -575,7 +590,7 @@ func (h *ChatHandler) GetGroupChatForGroup(w http.ResponseWriter, r *http.Reques
 		"participants": participants,
 		"type":         "group",
 	})
-}
+ 	}
 
 // RegisterChatRoutes registers all chat-related routes
 func RegisterChatRoutes(router *mux.Router, handler *ChatHandler) {

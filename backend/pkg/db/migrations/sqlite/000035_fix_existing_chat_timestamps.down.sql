@@ -1,0 +1,2 @@
+-- This migration is not easily reversible since we're converting data types
+-- If needed, you would need to recreate the database

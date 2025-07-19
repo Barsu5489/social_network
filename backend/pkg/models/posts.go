@@ -160,59 +160,21 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
         ORDER BY p.created_at DESC
     `
 
-	fmt.Printf("Executing query:\n%s\nWith userID: %s\n", query, userID)
-
 	rows, err := db.Query(query, userID)
 	if err != nil {
-		fmt.Printf("Query error: %v\n", err)
 		return nil, fmt.Errorf("database query error: %v", err)
 	}
 	defer rows.Close()
 
 	var posts []Post
 	for rows.Next() {
-		var p Post
-		var groupID sql.NullString
-		var deletedAt sql.NullInt64
-
-		err := rows.Scan(
-			&p.ID,
-			&p.UserID,
-			&groupID,
-			&p.Content,
-			&p.Privacy,
-			&p.CreatedAt,
-			&p.UpdatedAt,
-			&deletedAt,
-			&p.LikesCount,
-			&p.UserLiked,
-		)
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.GroupID, &post.Content, &post.Privacy, &post.CreatedAt, &post.UpdatedAt, &post.DeletedAt, &post.LikesCount, &post.UserLiked)
 		if err != nil {
-			fmt.Printf("Row scan error: %v\n", err)
-			return nil, fmt.Errorf("row scan error: %v", err)
+			return nil, fmt.Errorf("error scanning post: %v", err)
 		}
-
-		// Handle nullable fields
-		if groupID.Valid {
-			p.GroupID = &groupID.String
-		} else {
-			p.GroupID = nil
-		}
-
-		if deletedAt.Valid {
-			p.DeletedAt = &deletedAt.Int64
-		} else {
-			p.DeletedAt = nil
-		}
-
-		posts = append(posts, p)
+		posts = append(posts, post)
 	}
 
-	if err = rows.Err(); err != nil {
-		fmt.Printf("Rows iteration error: %v\n", err)
-		return nil, fmt.Errorf("rows iteration error: %v", err)
-	}
-
-	fmt.Printf("Successfully retrieved %d posts\n", len(posts))
 	return posts, nil
 }

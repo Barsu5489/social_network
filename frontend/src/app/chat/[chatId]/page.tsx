@@ -97,28 +97,29 @@ function ChatView({ chatId }: { chatId: string }) {
 
     // Setup WebSocket
     useEffect(() => {
-        if (!chatId) return;
+        if (!chatId || !user) return;
         
-        // This derives ws:// or wss:// from http:// or https://
-        const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/ws';
+        // Connect to backend WebSocket - fix the port
+        const wsUrl = 'ws://localhost:3000/ws';
+        console.log('Attempting WebSocket connection to:', wsUrl);
         ws.current = new WebSocket(wsUrl);
 
         ws.current.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected to backend');
         };
 
-       ws.current.onmessage = (event) => {
+        ws.current.onmessage = (event) => {
             console.log('WebSocket message received:', event.data);
             try {
                 const messageData = JSON.parse(event.data);
                 if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
-                    // This is a message for the current chat, add it to the state
+                    const newMessage = messageData.data;
                     setMessages((prevMessages) => {
                         // Avoid adding duplicate messages
-                        if (prevMessages.some(m => m.id === messageData.data.id)) {
+                        if (prevMessages.some(m => m.id === newMessage.id)) {
                             return prevMessages;
                         }
-                        return [...prevMessages, messageData.data];
+                        return [...prevMessages, newMessage];
                     });
                 }
             } catch (error) {
@@ -130,23 +131,26 @@ function ChatView({ chatId }: { chatId: string }) {
             console.log('WebSocket disconnected');
         };
 
-       ws.current.onerror = (error) => {
+        ws.current.onerror = (error) => {
             console.error('WebSocket error:', error);
             toast({ variant: 'destructive', title: 'Chat Error', description: 'Connection to the chat server was lost.' });
         };
 
-        console.log('WebSocket setup complete');
-
-        // Cleanup on unmount
         return () => {
             ws.current?.close();
         };
-    }, [chatId, toast]);
+    }, [chatId, user, toast]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !user) return;
+        console.log('handleSendMessage called with:', { newMessage, user, chatId });
+        
+        if (!newMessage.trim() || !user) {
+            console.log('Message validation failed:', { hasMessage: !!newMessage.trim(), hasUser: !!user });
+            return;
+        }
 
+        console.log('Sending message to:', `${API_BASE_URL}/api/chats/${chatId}/messages`);
         setIsSending(true);
         try {
             const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
@@ -156,19 +160,22 @@ function ChatView({ chatId }: { chatId: string }) {
                 credentials: 'include',
             });
 
+            console.log('Send message response status:', response.status);
+            
             if (!response.ok) {
-                console.error('Failed to send message. Status:', response.status);
+                const errorData = await response.text();
+                console.error('Send message failed:', errorData);
                 throw new Error('Failed to send message.');
             }
 
-            const sentMessage = await response.json();
-            console.log('Sent message:', sentMessage);
-            // Optimistically add the message for the sender.
-            // Backend broadcasts to others.
-            setMessages((prev) => [...prev, sentMessage.message]);
-            setNewMessage('');
+            const responseData = await response.json();
+            console.log('Send message response data:', responseData);
 
+            // Don't add message optimistically - let WebSocket handle it
+            setNewMessage('');
+            console.log('Message sent successfully, cleared input');
         } catch (error: any) {
+            console.error('Error sending message:', error);
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
             setIsSending(false);

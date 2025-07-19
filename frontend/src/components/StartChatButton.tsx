@@ -24,6 +24,10 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
         }
       );
 
+      if (!followCheckResponse.ok) {
+        throw new Error('Failed to check follow relationship');
+      }
+
       const followCheckData = await followCheckResponse.json();
 
       if (!followCheckData.isFollowing && !followCheckData.isFollowedBy) {
@@ -31,8 +35,7 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description:
-            'You can only chat with users you follow or who follow you.',
+          description: 'You can only chat with users you follow or who follow you.',
         });
         return;
       }
@@ -50,7 +53,7 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
       const data = await response.json();
       console.log('Create chat response:', data);
 
-      if (response.ok && data.created) {
+      if (response.ok && data.chat_id) {
         console.log('Navigating to chat:', data.chat_id);
         router.push(`/chat/${data.chat_id}`);
       } else {
@@ -58,14 +61,15 @@ const StartChatButton: React.FC<StartChatButtonProps> = ({ userId }) => {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Failed to create chat.',
+          description: data.error || 'Failed to create chat.',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error in handleStartChat:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to create chat.',
+        description: error.message || 'Failed to create chat.',
       });
     }
   };
