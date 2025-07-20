@@ -11,7 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, hub interface{}, userID, likeableType, likeableID string) (*Like, error) {
+// NotificationSender interface to avoid import cycles
+type NotificationSender interface {
+	SendNotification(userID string, notification Notification, metadata map[string]interface{})
+}
+
+func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, hub NotificationSender, userID, likeableType, likeableID string) (*Like, error) {
 	if likeableType != "post" && likeableType != "comment" {
 		return nil, errors.New("invalid likeable type")
 	}
@@ -83,22 +88,16 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 
 				// Send real-time notification if hub is available
 				if hub != nil {
-					// Use reflection or interface method to avoid import cycle
-					// Check if hub has SendNotification method
-					if hubWithNotify, ok := hub.(interface {
-						SendNotification(string, Notification, map[string]interface{})
-					}); ok {
-						// Get liker info
-						var likerNickname, likerAvatar string
-						db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&likerNickname, &likerAvatar)
+					// Get liker info
+					var likerNickname, likerAvatar string
+					db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&likerNickname, &likerAvatar)
 
-						hubWithNotify.SendNotification(postOwnerID, notification, map[string]interface{}{
-							"post_id":        likeableID,
-							"liker_id":       userID,
-							"actor_nickname": likerNickname,
-							"actor_avatar":   likerAvatar,
-						})
-					}
+					hub.SendNotification(postOwnerID, notification, map[string]interface{}{
+						"post_id":        likeableID,
+						"liker_id":       userID,
+						"actor_nickname": likerNickname,
+						"actor_avatar":   likerAvatar,
+					})
 				}
 			}
 		} else if err != nil {
