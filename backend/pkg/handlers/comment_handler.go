@@ -172,8 +172,8 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 			notification := models.Notification{
 				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
-				Type:        "comment_on_post",
-				ReferenceID: postID, // Use post ID instead of comment ID
+				Type:        "new_comment", // Changed from "comment_on_post" to match DB constraint
+				ReferenceID: postID,
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

@@ -86,17 +86,17 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 
 	// Create notification for comment likes
 	if likeableType == "comment" {
-		// Get comment owner
-		var commentOwnerID string
-		commentOwnerStmt := `SELECT user_id FROM comments WHERE id = ?`
-		err = db.QueryRowContext(ctx, commentOwnerStmt, likeableID).Scan(&commentOwnerID)
+		// Get comment owner and post ID
+		var commentOwnerID, postID string
+		commentOwnerStmt := `SELECT user_id, post_id FROM comments WHERE id = ?`
+		err = db.QueryRowContext(ctx, commentOwnerStmt, likeableID).Scan(&commentOwnerID, &postID)
 		if err == nil && commentOwnerID != userID {
 			// Don't notify for self-likes
 			notification := Notification{
 				ID:          uuid.New().String(),
 				UserID:      commentOwnerID,
-				Type:        "comment_like",
-				ReferenceID: likeableID,
+				Type:        "new_like", // Use same type as post likes
+				ReferenceID: postID,     // Use post ID for navigation
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

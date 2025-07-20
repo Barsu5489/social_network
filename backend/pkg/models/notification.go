@@ -36,33 +36,18 @@ func (m *NotificationModel) Insert(ctx context.Context, notification Notificatio
 }
 
 func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]map[string]interface{}, error) {
+	// First get all notifications for the user
 	query := `
-		SELECT n.id, n.type, n.reference_id, n.created_at,
-			   u.first_name, u.last_name, u.avatar_url
-		FROM notifications n
-		LEFT JOIN users u ON (
-			CASE 
-				WHEN n.type = 'new_follower' THEN n.reference_id = u.id
-				WHEN n.type = 'new_like' THEN (
-					SELECT l.user_id FROM likes l WHERE l.id = n.reference_id
-				) = u.id
-				WHEN n.type = 'comment_on_post' THEN (
-					SELECT c.user_id FROM comments c WHERE c.id = n.reference_id
-				) = u.id
-				WHEN n.type = 'new_message' THEN (
-					SELECT m.sender_id FROM messages m WHERE m.id = n.reference_id
-				) = u.id
-				ELSE n.reference_id = u.id
-			END
-		)
-		WHERE n.user_id = ? AND n.is_read = false AND n.deleted_at IS NULL
-		ORDER BY n.created_at DESC
+		SELECT id, type, reference_id, created_at
+		FROM notifications 
+		WHERE user_id = ? AND is_read = false AND deleted_at IS NULL
+		ORDER BY created_at DESC
 	`
 
 	rows, err := nm.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		log.Printf("ERROR: Failed to query notifications: %v", err)
-		return []map[string]interface{}{}, nil // Return empty array instead of nil
+		return []map[string]interface{}{}, nil
 	}
 	defer rows.Close()
 
@@ -71,21 +56,55 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 	for rows.Next() {
 		var id, notifType, referenceID string
 		var createdAt time.Time
-		var firstName, lastName, avatarURL sql.NullString
 
-		err := rows.Scan(&id, &notifType, &referenceID, &createdAt, &firstName, &lastName, &avatarURL)
+		err := rows.Scan(&id, &notifType, &referenceID, &createdAt)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan notification: %v", err)
 			continue
 		}
 
-		// Format user name
-		userName := "Unknown User"
-		if firstName.Valid && lastName.Valid {
-			userName = firstName.String + " " + lastName.String
-		} else if firstName.Valid {
-			userName = firstName.String
+		// Get user info based on notification type
+		var firstName, lastName, avatarURL string
+		var userQuery string
+		var queryParam string
+
+		switch notifType {
+		case "new_follower":
+			userQuery = "SELECT first_name, last_name, avatar_url FROM users WHERE id = ?"
+			queryParam = referenceID
+		case "new_like":
+			// For likes, we need to find who liked the post
+			userQuery = `
+				SELECT u.first_name, u.last_name, u.avatar_url 
+				FROM users u 
+				JOIN likes l ON u.id = l.user_id 
+				WHERE l.likeable_id = ? AND l.deleted_at IS NULL 
+				ORDER BY l.created_at DESC LIMIT 1
+			`
+			queryParam = referenceID
+		case "new_comment":
+			// For comments, we need to find who commented on the post
+			userQuery = `
+				SELECT u.first_name, u.last_name, u.avatar_url 
+				FROM users u 
+				JOIN comments c ON u.id = c.user_id 
+				WHERE c.post_id = ? AND c.deleted_at IS NULL 
+				ORDER BY c.created_at DESC LIMIT 1
+			`
+			queryParam = referenceID
+		default:
+			userQuery = "SELECT first_name, last_name, avatar_url FROM users WHERE id = ?"
+			queryParam = referenceID
 		}
+
+		err = nm.DB.QueryRowContext(ctx, userQuery, queryParam).Scan(&firstName, &lastName, &avatarURL)
+		if err != nil {
+			log.Printf("ERROR: Failed to get user info for notification %s: %v", id, err)
+			firstName, lastName, avatarURL = "Unknown", "User", ""
+		}
+
+		// Format user name
+		userName := firstName + " " + lastName
 
 		// Generate message and href based on type
 		message, href := nm.formatNotificationMessage(notifType, referenceID)
@@ -95,7 +114,7 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 			"type": notifType,
 			"user": map[string]interface{}{
 				"name":   userName,
-				"avatar": avatarURL.String,
+				"avatar": avatarURL,
 			},
 			"message": message,
 			"time":    createdAt.Format("2 Jan 2006 15:04"),
@@ -115,9 +134,7 @@ func (nm *NotificationModel) formatNotificationMessage(notifType, referenceID st
 		return "started following you", "/profile/" + referenceID
 	case "new_like":
 		return "liked your post", "/posts/" + referenceID
-	case "comment_like":
-		return "liked your comment", "/posts/" + referenceID
-	case "comment_on_post":
+	case "new_comment":
 		return "commented on your post", "/posts/" + referenceID
 	case "new_message":
 		return "sent you a message", "/chat/" + referenceID
