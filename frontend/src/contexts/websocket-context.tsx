@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useUser } from './user-context'
 
 interface WebSocketContextType {
@@ -14,28 +14,30 @@ const WebSocketContext = createContext<WebSocketContextType>({
 })
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
-  const ws = useRef<WebSocket | null>(null)
+  const [ws, setWs] = useState<WebSocket | null>(null)
   const { user } = useUser()
 
   useEffect(() => {
     if (!user?.id) return
 
     console.log('Setting up global WebSocket connection...')
-    ws.current = new WebSocket(`ws://localhost:3000/ws`)
+    const websocket = new WebSocket(`ws://localhost:3000/ws`)
     
-    ws.current.onopen = () => {
+    websocket.onopen = () => {
       console.log('Global WebSocket connected')
+      setWs(websocket)
     }
 
-    ws.current.onerror = (error) => {
+    websocket.onerror = (error) => {
       console.error('Global WebSocket error:', error)
     }
 
-    ws.current.onclose = () => {
+    websocket.onclose = () => {
       console.log('Global WebSocket disconnected')
+      setWs(null)
     }
 
-    ws.current.onmessage = (event) => {
+    websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
         console.log('DEBUG: Global WebSocket message:', data)
@@ -48,20 +50,20 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
-      if (ws.current) {
-        ws.current.close()
+      if (websocket) {
+        websocket.close()
       }
     }
   }, [user?.id])
 
   const sendMessage = (message: any) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message))
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message))
     }
   }
 
   return (
-    <WebSocketContext.Provider value={{ ws: ws.current, sendMessage }}>
+    <WebSocketContext.Provider value={{ ws, sendMessage }}>
       {children}
     </WebSocketContext.Provider>
   )

@@ -141,7 +141,7 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get sender info for response
+	// Get sender info first for notifications
 	var sender models.User
 	err = h.chatRepo.DB.QueryRow(`
 		SELECT first_name, last_name, avatar_url
@@ -153,14 +153,55 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create notifications for other participants
+	participants, err := h.chatRepo.GetChatParticipants(chatID)
+	if err != nil {
+		log.Printf("SendMessage: Error getting participants for notifications: %v", err)
+	} else {
+		for _, participantID := range participants {
+			if participantID != userID {
+				log.Printf("SendMessage: Creating notification for participant: %s", participantID)
+				
+				notification := models.Notification{
+					ID:          uuid.New().String(),
+					UserID:      participantID,
+					Type:        "new_message",
+					ReferenceID: chatID,
+					IsRead:      false,
+					CreatedAt:   time.Now(),
+				}
+				
+				// Save notification to database
+				if h.notificationRepo != nil {
+					_, err := h.notificationRepo.Insert(r.Context(), notification)
+					if err != nil {
+						log.Printf("SendMessage: Error saving notification: %v", err)
+					} else {
+						log.Printf("SendMessage: Notification saved for user: %s", participantID)
+						
+						// Send real-time notification
+						h.hub.SendNotification(participantID, notification, map[string]interface{}{
+							"chat_id":        chatID,
+							"sender_id":      userID,
+							"message_id":     message.ID,
+							"actor_nickname": sender.FirstName + " " + sender.LastName,
+							"actor_avatar":   sender.AvatarURL,
+						})
+					}
+				}
+			}
+		}
+	}
+
 	message.Sender = sender
 
 	log.Printf("SendMessage: Retrieved sender info: %+v", sender)
 
 	// Broadcast message via websocket
 	wsMessage := websocket.MessagePayload{
-		Type:   "new_message",
-		ChatID: chatID,
+		Type:     "new_message",
+		ChatID:   chatID,
+		SenderID: userID,
 		Data: map[string]interface{}{
 			"id":        message.ID,
 			"chat_id":   message.ChatID,
