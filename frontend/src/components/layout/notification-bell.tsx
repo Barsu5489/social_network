@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,7 @@ const icons: { [key: string]: React.ElementType } = {
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const ws = useRef<WebSocket | null>(null)
 
   const markAsRead = async (id: string) => {
     console.log('DEBUG: Marking notification as read:', id)
@@ -64,43 +65,82 @@ export function NotificationBell() {
     }
   };
 
+  const fetchNotifications = async () => {
+    console.log('DEBUG: Fetching notifications...')
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+        credentials: 'include'
+      })
+      console.log('DEBUG: Notifications fetch response status:', res.status)
+      
+      if (!res.ok) {
+        console.error('ERROR: Notifications fetch failed with status:', res.status);
+        throw new Error('Failed to fetch notifications')
+      }
+      const data = await res.json()
+      console.log('DEBUG: Notifications data received:', data)
+      
+      // Handle both array and null responses
+      let notificationsArray = []
+      if (Array.isArray(data)) {
+        notificationsArray = data
+      } else if (data && Array.isArray(data.notifications)) {
+        notificationsArray = data.notifications
+      } else if (data === null) {
+        notificationsArray = []
+      }
+      
+      console.log('DEBUG: Number of notifications:', notificationsArray.length)
+      setNotifications(notificationsArray)
+    } catch (err) {
+      console.error('ERROR: Error fetching notifications:', err)
+      setNotifications([])
+    } finally {
+      setLoading(false)
+      console.log('DEBUG: Notifications fetch completed')
+    }
+  }
+
+  // Setup WebSocket for real-time notifications
   useEffect(() => {
-    const fetchNotifications = async () => {
-      console.log('DEBUG: Fetching notifications...')
+    console.log('Setting up WebSocket for notifications...')
+    ws.current = new WebSocket(`ws://localhost:3000/ws`)
+    
+    ws.current.onopen = () => {
+      console.log('Notification WebSocket connected')
+    }
+
+    ws.current.onmessage = (event) => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-          credentials: 'include'
-        })
-        console.log('DEBUG: Notifications fetch response status:', res.status)
+        const messageData = JSON.parse(event.data)
+        console.log('DEBUG: WebSocket notification received:', messageData)
         
-        if (!res.ok) {
-          console.error('ERROR: Notifications fetch failed with status:', res.status);
-          throw new Error('Failed to fetch notifications')
+        if (messageData.type === 'notification') {
+          console.log('DEBUG: Processing real-time notification')
+          // Refresh notifications when we receive a new one
+          fetchNotifications()
         }
-        const data = await res.json()
-        console.log('DEBUG: Notifications data received:', data)
-        
-        // Handle both array and null responses
-        let notificationsArray = []
-        if (Array.isArray(data)) {
-          notificationsArray = data
-        } else if (data && Array.isArray(data.notifications)) {
-          notificationsArray = data.notifications
-        } else if (data === null) {
-          notificationsArray = []
-        }
-        
-        console.log('DEBUG: Number of notifications:', notificationsArray.length)
-        setNotifications(notificationsArray)
-      } catch (err) {
-        console.error('ERROR: Error fetching notifications:', err)
-        setNotifications([]) // Ensure notifications is always an array
-      } finally {
-        setLoading(false)
-        console.log('DEBUG: Notifications fetch completed')
+      } catch (error) {
+        console.error('ERROR: Failed to parse WebSocket notification:', error)
       }
     }
 
+    ws.current.onerror = (error) => {
+      console.error('Notification WebSocket error:', error)
+    }
+
+    ws.current.onclose = () => {
+      console.log('Notification WebSocket disconnected')
+    }
+
+    return () => {
+      if (ws.current) {
+        ws.current.close()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     fetchNotifications()
   }, [])
 
