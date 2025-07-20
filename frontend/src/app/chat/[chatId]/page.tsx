@@ -132,11 +132,8 @@ function ChatView({ chatId }: { chatId: string }) {
                     });
                 } else if (messageData.type === 'notification') {
                     console.log('DEBUG: Received notification via WebSocket:', messageData.data);
-                    console.log('DEBUG: Notification type:', messageData.data?.notification?.type);
-                    console.log('DEBUG: Notification for user:', messageData.data?.notification?.user_id);
-                    
-                    // TODO: Update notification bell or show toast notification
-                    // This should trigger a refresh of the notification bell
+                    // Don't create notifications for messages in the current chat
+                    // The notification bell will handle this
                 }
             } catch (error) {
                 console.error('ERROR: Failed to parse WebSocket message:', error);

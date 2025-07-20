@@ -122,7 +122,7 @@ func main() {
 
 	// Follow routes
 	router.HandleFunc("/api/users/{userID}/follow", auth.RequireAuth(followHandler.Follow)).Methods("POST")
-	router.HandleFunc("/api/users/{userID}/unfollow", auth.RequireAuth(followHandler.Unfollow)).Methods("POST")
+	router.HandleFunc("/api/users/{userID}/unfollow", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
 	router.HandleFunc("/api/follow/check", auth.RequireAuth(followHandler.CheckFollowStatus)).Methods("GET")
 
 	// Notification routes
@@ -151,6 +151,14 @@ func main() {
 			next.ServeHTTP(w, r)
 		})
 	})
+
+	// Like routes
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
+	router.HandleFunc("/api/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods("GET")
+	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods("POST")
+	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods("DELETE")
+	router.HandleFunc("/api/comments/{comment_id}/likes", auth.RequireAuth(handlers.GetCommentLikes(db))).Methods("GET")
 
 	// Enable CORS
 	c := cors.New(cors.Options{

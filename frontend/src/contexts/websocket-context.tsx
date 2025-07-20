@@ -35,6 +35,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       console.log('Global WebSocket disconnected')
     }
 
+    ws.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('DEBUG: Global WebSocket message:', data)
+        
+        // Let components handle their own message types
+        // This is just for logging and debugging
+      } catch (error) {
+        console.error('ERROR: Failed to parse WebSocket message:', error)
+      }
+    }
+
     return () => {
       if (ws.current) {
         ws.current.close()

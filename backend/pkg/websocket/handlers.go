@@ -43,6 +43,13 @@ func (h *Hub) handleNewMessage(msg MessagePayload) {
 	} else {
 		log.Printf("DEBUG: Chat participants: %v", participants)
 		
+		// Get sender info for notification
+		var senderNickname, senderAvatar string
+		if h.notificationModel != nil {
+			query := `SELECT nickname, avatar_url FROM users WHERE id = ?`
+			h.db.QueryRow(query, msg.SenderID).Scan(&senderNickname, &senderAvatar)
+		}
+		
 		// Create notifications for other participants
 		for _, participantID := range participants {
 			if participantID != msg.SenderID {
@@ -67,21 +74,16 @@ func (h *Hub) handleNewMessage(msg MessagePayload) {
 						
 						// Send real-time notification
 						h.SendNotification(participantID, notification, map[string]interface{}{
-							"chat_id":    msg.ChatID,
-							"sender_id":  msg.SenderID,
-							"message_id": message.ID,
+							"chat_id":        msg.ChatID,
+							"sender_id":      msg.SenderID,
+							"message_id":     message.ID,
+							"actor_nickname": senderNickname,
+							"actor_avatar":   senderAvatar,
 						})
 					}
 				}
 			}
 		}
-	}
-
-	// Broadcast to chat participants
-	chat, ok := h.ChatRooms[msg.ChatID]
-	if !ok {
-		log.Printf("WARNING: Chat room %s not active", msg.ChatID)
-		return
 	}
 
 	// Get full message with sender details for broadcasting
@@ -95,6 +97,13 @@ func (h *Hub) handleNewMessage(msg MessagePayload) {
 		Type:   "new_message",
 		ChatID: msg.ChatID,
 		Data:   fullMessage,
+	}
+
+	// Broadcast to chat participants
+	chat, ok := h.ChatRooms[msg.ChatID]
+	if !ok {
+		log.Printf("WARNING: Chat room %s not active", msg.ChatID)
+		return
 	}
 
 	log.Printf("DEBUG: Broadcasting message to %d participants", len(chat.Members))

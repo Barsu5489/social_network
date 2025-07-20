@@ -67,11 +67,14 @@ const FollowButton = ({ targetUserId, followers }: { targetUserId: string, follo
     const handleFollow = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/follow/${targetUserId}`, { method: 'POST', credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/api/users/${targetUserId}/follow`, { 
+                method: 'POST', 
+                credentials: 'include' 
+            });
             if (!response.ok) throw new Error('Failed to follow');
             setIsFollowing(true);
             toast({ title: 'Followed successfully!' });
-            router.refresh(); // Refresh to get updated follower count
+            router.refresh();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not follow user.' });
         } finally {
@@ -82,11 +85,14 @@ const FollowButton = ({ targetUserId, followers }: { targetUserId: string, follo
     const handleUnfollow = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/unfollow/${targetUserId}`, { method: 'DELETE', credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/api/users/${targetUserId}/unfollow`, { 
+                method: 'DELETE', 
+                credentials: 'include' 
+            });
             if (!response.ok) throw new Error('Failed to unfollow');
             setIsFollowing(false);
             toast({ title: 'Unfollowed successfully.' });
-            router.refresh(); // Refresh to get updated follower count
+            router.refresh();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not unfollow user.' });
         } finally {

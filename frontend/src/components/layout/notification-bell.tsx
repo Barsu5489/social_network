@@ -126,8 +126,23 @@ export function NotificationBell() {
         
         if (messageData.type === 'notification') {
           console.log('DEBUG: Processing real-time notification')
-          // Refresh notifications when we receive a new one
-          fetchNotifications()
+          // Add the new notification to the list immediately
+          const notificationPayload = messageData.data
+          if (notificationPayload && notificationPayload.notification) {
+            const newNotification = {
+              id: notificationPayload.notification.id,
+              type: notificationPayload.notification.type,
+              message: formatNotificationMessage(notificationPayload.notification.type, notificationPayload.data),
+              link: formatNotificationLink(notificationPayload.notification.type, notificationPayload.notification.reference_id),
+              is_read: false,
+              created_at: Math.floor(new Date(notificationPayload.notification.created_at).getTime() / 1000),
+              reference_id: notificationPayload.notification.reference_id,
+              actor_nickname: notificationPayload.data?.actor_nickname,
+              actor_avatar: notificationPayload.data?.actor_avatar
+            }
+            
+            setNotifications(prev => [newNotification, ...(prev || [])])
+          }
         }
       } catch (error) {
         console.error('ERROR: Failed to parse WebSocket notification:', error)
@@ -156,6 +171,51 @@ export function NotificationBell() {
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
     return `${Math.floor(diffInMinutes / 1440)}d ago`
+  }
+
+  // Helper functions to format notifications
+  const formatNotificationMessage = (type: string, data: any) => {
+    const actorName = data?.actor_nickname || 'Someone'
+    switch (type) {
+      case 'new_follower':
+        return 'started following you'
+      case 'follow_request':
+        return 'sent you a follow request'
+      case 'new_like':
+        return 'liked your post'
+      case 'new_comment':
+        return 'commented on your post'
+      case 'new_message':
+        return 'sent you a message'
+      case 'group_invite':
+        return 'invited you to join a group'
+      case 'group_join_request':
+        return 'requested to join your group'
+      case 'event_created':
+        return 'created a new event in your group'
+      default:
+        return 'sent you a notification'
+    }
+  }
+
+  const formatNotificationLink = (type: string, referenceId: string) => {
+    switch (type) {
+      case 'new_follower':
+      case 'follow_request':
+        return `/profile/${referenceId}`
+      case 'new_like':
+      case 'new_comment':
+        return `/post/${referenceId}`
+      case 'new_message':
+        return `/chat/${referenceId}`
+      case 'group_invite':
+      case 'group_join_request':
+        return `/groups/${referenceId}`
+      case 'event_created':
+        return `/events/${referenceId}`
+      default:
+        return '#'
+    }
   }
 
   return (
