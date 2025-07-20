@@ -76,21 +76,23 @@ func NewComment(db *sql.DB) http.HandlerFunc {
 // GetPostComments retrieves all comments for a specific post
 func GetPostComments(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println()
+		fmt.Println("GetPostComments function being called")
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		userID, ok := r.Context().Value("user_id").(string)
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+		// Try to get user ID, but don't require it for public posts
+		userID := ""
+		if uid := r.Context().Value("user_id"); uid != nil {
+			if uidStr, ok := uid.(string); ok {
+				userID = uidStr
+			}
 		}
 
 		// Get post_id from URL parameters
 		vars := mux.Vars(r)
-		postID := vars["post_id"]
+		postID := vars["postId"]
 		if postID == "" {
 			http.Error(w, "Post ID is required", http.StatusBadRequest)
 			return
@@ -101,6 +103,7 @@ func GetPostComments(db *sql.DB) http.HandlerFunc {
 
 		comments, err := models.GetPostComments(db, ctx, postID, userID)
 		if err != nil {
+			log.Printf("ERROR: Failed to get comments: %v", err)
 			http.Error(w, "Error getting comments", http.StatusInternalServerError)
 			return
 		}
@@ -170,7 +173,7 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
 				Type:        "comment_on_post",
-				ReferenceID: comment.ID,
+				ReferenceID: postID, // Use post ID instead of comment ID
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

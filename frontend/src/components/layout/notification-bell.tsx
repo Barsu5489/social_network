@@ -79,9 +79,12 @@ export function NotificationBell() {
         }
         const data = await res.json()
         console.log('DEBUG: Notifications data received:', data)
-        console.log('DEBUG: Number of notifications:', Array.isArray(data) ? data.length : 'Not an array')
         
-        setNotifications(Array.isArray(data) ? data : [])
+        // Handle both array and null responses
+        const notificationsArray = Array.isArray(data) ? data : (data?.notifications || [])
+        console.log('DEBUG: Number of notifications:', notificationsArray.length)
+        
+        setNotifications(notificationsArray)
       } catch (err) {
         console.error('ERROR: Error fetching notifications:', err)
         setNotifications([]) // Ensure notifications is always an array

@@ -52,7 +52,7 @@ func (h *Hub) handleNewMessage(msg MessagePayload) {
 					ID:          uuid.New().String(),
 					UserID:      participantID,
 					Type:        "new_message",
-					ReferenceID: message.ID,
+					ReferenceID: msg.ChatID, // Use chat ID for easier navigation
 					IsRead:      false,
 					CreatedAt:   time.Now(),
 				}

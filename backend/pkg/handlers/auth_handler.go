@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"social-nework/pkg/auth"
@@ -61,7 +62,7 @@ type LoginRequest struct {
 }
 
 // Login handles user authentication
-func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -81,31 +82,48 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate user
-	user, err := a.UserModel.Authenticate(req.Email, req.Password)
+	user, err := h.UserModel.Authenticate(req.Email, req.Password)
 	if err != nil {
 		log.Println("Authentication error:", err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	// Create user session
-	if err := auth.CreateSession(w, r, user.ID); err != nil {
-		log.Println("Session creation error:", err)
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+	// After successful authentication
+	sessionToken := uuid.New().String()
+	expiresAt := time.Now().Add(24 * time.Hour)
+
+	// Store session
+	err = auth.CreateSession(w, r, user.ID)
+	if err != nil {
+		log.Printf("ERROR: Failed to store session: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Return success response
+	// Set cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "social-network-session",
+		Value:    sessionToken,
+		Expires:  expiresAt,
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	log.Printf("SUCCESS: User logged in successfully: %s, session: %s", user.Email, sessionToken[:10]+"...")
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
 		"message": "Login successful",
-		"data": map[string]interface{}{
+		"user": map[string]interface{}{
 			"id":         user.ID,
 			"email":      user.Email,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
+			"nickname":   user.Nickname,
+			"avatar_url": user.AvatarURL,
 		},
 	})
 }

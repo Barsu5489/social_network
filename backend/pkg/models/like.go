@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,17 +68,43 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 		if err == nil && postOwnerID != userID {
 			// Don't notify for self-likes
 			notification := Notification{
+				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
 				Type:        "new_like",
-				ReferenceID: id,
+				ReferenceID: likeableID, // Use post ID instead of like ID
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}
 			_, err = notificationModel.Insert(ctx, notification)
 			if err != nil {
-				// Log the error, but don't return it as the like was successful
-				// You might want to add more robust error handling here
 				fmt.Printf("Failed to create notification for like: %v\n", err)
+			} else {
+				log.Printf("SUCCESS: Like notification created for post owner: %s", postOwnerID)
+			}
+		}
+	}
+
+	// Create notification for comment likes
+	if likeableType == "comment" {
+		// Get comment owner
+		var commentOwnerID string
+		commentOwnerStmt := `SELECT user_id FROM comments WHERE id = ?`
+		err = db.QueryRowContext(ctx, commentOwnerStmt, likeableID).Scan(&commentOwnerID)
+		if err == nil && commentOwnerID != userID {
+			// Don't notify for self-likes
+			notification := Notification{
+				ID:          uuid.New().String(),
+				UserID:      commentOwnerID,
+				Type:        "comment_like",
+				ReferenceID: likeableID,
+				IsRead:      false,
+				CreatedAt:   time.Now(),
+			}
+			_, err = notificationModel.Insert(ctx, notification)
+			if err != nil {
+				fmt.Printf("Failed to create notification for comment like: %v\n", err)
+			} else {
+				log.Printf("SUCCESS: Comment like notification created for comment owner: %s", commentOwnerID)
 			}
 		}
 	}
