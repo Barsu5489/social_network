@@ -100,8 +100,9 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 			notification := Notification{
 				ID:          uuid.New().String(),
 				UserID:      commentOwnerID,
-				Type:        "new_like", // Use same type as post likes
+				Type:        "new_like",
 				ReferenceID: postID,     // Use post ID for navigation
+				ActorID:     &userID,    // Store who performed the action
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

@@ -44,11 +44,8 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 			notifications.type,
 			notifications.reference_id,
 			notifications.is_read,
-			notifications.created_at,
-			users.nickname as actor_nickname,
-			users.avatar_url as actor_avatar
+			notifications.created_at
 		FROM notifications 
-		LEFT JOIN users ON notifications.reference_id = users.id
 		WHERE notifications.user_id = ? 
 		AND notifications.deleted_at IS NULL 
 		AND notifications.is_read = 0
@@ -69,16 +66,18 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 		var id, notifUserID, notifType, referenceID string
 		var isRead bool
 		var createdAt int64
-		var actorNickname, actorAvatar sql.NullString
-
-		err := rows.Scan(&id, &notifUserID, &notifType, &referenceID, &isRead, &createdAt, &actorNickname, &actorAvatar)
+		
+		err := rows.Scan(&id, &notifUserID, &notifType, &referenceID, &isRead, &createdAt)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan notification: %v", err)
 			continue
 		}
-
+		
 		message, link := nm.formatNotificationMessage(notifType, referenceID)
-
+		
+		// Get actor info based on notification type
+		actorNickname, actorAvatar := nm.getActorInfo(ctx, notifType, referenceID)
+		
 		notification := map[string]interface{}{
 			"id":           id,
 			"type":         notifType,
@@ -88,14 +87,14 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 			"created_at":   createdAt,
 			"reference_id": referenceID,
 		}
-
-		if actorNickname.Valid {
-			notification["actor_nickname"] = actorNickname.String
+		
+		if actorNickname != "" {
+			notification["actor_nickname"] = actorNickname
 		}
-		if actorAvatar.Valid {
-			notification["actor_avatar"] = actorAvatar.String
+		if actorAvatar != "" {
+			notification["actor_avatar"] = actorAvatar
 		}
-
+		
 		notifications = append(notifications, notification)
 	}
 
@@ -109,9 +108,9 @@ func (nm *NotificationModel) formatNotificationMessage(notifType, referenceID st
 	case "follow_request":
 		return "sent you a follow request", "/profile/" + referenceID
 	case "new_like":
-		return "liked your post", "/posts/" + referenceID
+		return "liked your post", "/post/" + referenceID
 	case "new_comment":
-		return "commented on your post", "/posts/" + referenceID
+		return "commented on your post", "/post/" + referenceID
 	case "new_message":
 		return "sent you a message", "/chat/" + referenceID
 	case "group_invite":
@@ -162,4 +161,27 @@ func (m *NotificationModel) Delete(ctx context.Context, notificationID, userID s
 
 	_, err := m.DB.ExecContext(ctx, query, time.Now().Unix(), notificationID, userID)
 	return err
+}
+
+func (nm *NotificationModel) getActorInfo(ctx context.Context, notifType, referenceID string) (string, string) {
+	var nickname, avatar string
+	
+	switch notifType {
+	case "new_like", "new_comment":
+		// For likes and comments, we need to get the actor from the additional data
+		// This is more complex, so for now return empty strings
+		// You could store actor_id in notifications table for better performance
+		return "", ""
+	case "new_follower", "follow_request":
+		// For follow notifications, reference_id is the follower's user_id
+		query := `SELECT nickname, avatar_url FROM users WHERE id = ?`
+		nm.DB.QueryRowContext(ctx, query, referenceID).Scan(&nickname, &avatar)
+	case "new_message":
+		// For messages, you might want to get sender info from chat context
+		return "", ""
+	default:
+		return "", ""
+	}
+	
+	return nickname, avatar
 }

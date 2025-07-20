@@ -175,6 +175,7 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 				UserID:      postOwnerID,
 				Type:        "new_comment",
 				ReferenceID: postID,
+				ActorID:     &userID,    // Store who performed the action
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

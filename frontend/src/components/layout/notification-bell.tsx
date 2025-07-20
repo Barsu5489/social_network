@@ -76,9 +76,16 @@ export function NotificationBell() {
     }
   }
 
-  const handleNotificationClick = (notif: Notification) => {
-    // Mark as read when clicked
-    markAsRead(notif.id)
+  const handleNotificationClick = async (notif: Notification, e: React.MouseEvent) => {
+    e.preventDefault()
+    
+    // Mark as read first
+    await markAsRead(notif.id)
+    
+    // Then navigate to the link
+    if (notif.link && notif.link !== '#') {
+      window.location.href = notif.link
+    }
   }
 
   const fetchNotifications = async () => {
@@ -174,10 +181,9 @@ export function NotificationBell() {
             const Icon = icons[notif.type] || Bell
             return (
               <DropdownMenuItem key={notif.id} asChild>
-                <Link 
-                  href={notif.link || '#'} 
-                  className="flex items-start gap-3 w-full"
-                  onClick={() => handleNotificationClick(notif)}
+                <div 
+                  className="flex items-start gap-3 w-full cursor-pointer p-2 hover:bg-accent"
+                  onClick={(e) => handleNotificationClick(notif, e)}
                 >
                   <Avatar className="h-8 w-8 mt-1">
                     <AvatarImage src={notif.actor_avatar} />
@@ -191,7 +197,7 @@ export function NotificationBell() {
                     </p>
                     <p className="text-xs text-muted-foreground">{formatTime(notif.created_at)}</p>
                   </div>
-                </Link>
+                </div>
               </DropdownMenuItem>
             )
           })

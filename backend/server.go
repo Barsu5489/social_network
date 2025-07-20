@@ -135,9 +135,8 @@ func main() {
 	// Posts routes
 	router.HandleFunc("/api/posts", auth.RequireAuth(handlers.AllPosts(db))).Methods("GET")
 	router.HandleFunc("/api/posts", auth.RequireAuth(handlers.NewPost(db))).Methods("POST")
+	router.HandleFunc("/api/posts/{post_id}", auth.RequireAuth(handlers.GetSinglePost(db))).Methods("GET")
 	router.HandleFunc("/api/posts/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
-	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
-	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
 
 	// Comment routes - temporarily remove auth from GET to debug
 	router.HandleFunc("/comments/{postId}", handlers.GetPostComments(db)).Methods("GET")
@@ -155,7 +154,7 @@ func main() {
 
 	// Enable CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
