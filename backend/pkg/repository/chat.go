@@ -19,7 +19,7 @@ type ChatRepository struct {
 func (r *ChatRepository) CreateChat(chatType string, creatorID string) (*models.Chat, error) {
 	chatID := uuid.New().String()
 	now := time.Now().Unix()
-	
+
 	log.Printf("CreateChat: Inserting chat %s with Unix timestamp: %d", chatID, now)
 
 	_, err := r.DB.Exec(`
@@ -253,7 +253,6 @@ func (r *ChatRepository) GetChatInfo(chatID string) (*models.Chat, error) {
 	return &chat, nil
 }
 
-
 // CreateGroupChat creates a chat specifically for a group
 func (r *ChatRepository) CreateGroupChat(groupID, creatorID string) (string, error) {
 	tx, err := r.DB.Begin()
@@ -372,8 +371,6 @@ func (r *ChatRepository) SoftDeleteChat(chatID string) error {
 		time.Now(), chatID)
 	return err
 }
-
-
 
 // GetChatType returns the type of a chat
 func (r *ChatRepository) GetChatType(chatID string) (string, error) {

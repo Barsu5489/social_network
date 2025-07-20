@@ -67,7 +67,7 @@ func LikeComment(db *sql.DB, notificationModel *models.NotificationModel) http.H
 
 		if isLike {
 			// Like the comment
-			like, err := models.CreateLike(db, ctx, notificationModel, userID, "comment", commentID)
+			like, err := models.CreateLike(db, ctx, notificationModel, nil, userID, "comment", commentID)
 			if err != nil {
 				// If the error is because user already liked the comment, return a specific status code
 				if err.Error() == "user already liked this content" {

@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, userID, likeableType, likeableID string) (*Like, error) {
+func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, hub interface{}, userID, likeableType, likeableID string) (*Like, error) {
 	if likeableType != "post" && likeableType != "comment" {
 		return nil, errors.New("invalid likeable type")
 	}
@@ -67,12 +67,11 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 		err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
 		if err == nil && postOwnerID != userID {
 			log.Printf("DEBUG: Creating like notification - PostOwner: %s, Liker: %s, PostID: %s", postOwnerID, userID, likeableID)
-			// Don't notify for self-likes
 			notification := Notification{
 				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
 				Type:        "new_like",
-				ReferenceID: likeableID, // Use post ID instead of like ID
+				ReferenceID: likeableID,
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}
@@ -81,6 +80,26 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 				log.Printf("ERROR: Failed to create notification for like: %v", err)
 			} else {
 				log.Printf("SUCCESS: Like notification created for post owner: %s", postOwnerID)
+
+				// Send real-time notification if hub is available
+				if hub != nil {
+					// Use reflection or interface method to avoid import cycle
+					// Check if hub has SendNotification method
+					if hubWithNotify, ok := hub.(interface {
+						SendNotification(string, Notification, map[string]interface{})
+					}); ok {
+						// Get liker info
+						var likerNickname, likerAvatar string
+						db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&likerNickname, &likerAvatar)
+
+						hubWithNotify.SendNotification(postOwnerID, notification, map[string]interface{}{
+							"post_id":        likeableID,
+							"liker_id":       userID,
+							"actor_nickname": likerNickname,
+							"actor_avatar":   likerAvatar,
+						})
+					}
+				}
 			}
 		} else if err != nil {
 			log.Printf("ERROR: Failed to get post owner for like notification: %v", err)
@@ -101,8 +120,8 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 				ID:          uuid.New().String(),
 				UserID:      commentOwnerID,
 				Type:        "new_like",
-				ReferenceID: postID,     // Use post ID for navigation
-				ActorID:     &userID,    // Store who performed the action
+				ReferenceID: postID,  // Use post ID for navigation
+				ActorID:     &userID, // Store who performed the action
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}

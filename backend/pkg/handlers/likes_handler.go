@@ -65,7 +65,7 @@ func LikePost(db *sql.DB, notificationModel *models.NotificationModel) http.Hand
 
 		if isLike {
 			// Like the post
-			like, err := models.CreateLike(db, ctx, notificationModel, userID, "post", postID)
+			like, err := models.CreateLike(db, ctx, notificationModel, nil, userID, "post", postID)
 			if err != nil {
 				// If the error is because user already liked the post, return a specific status code
 				if err.Error() == "user already liked this content" {
