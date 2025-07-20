@@ -67,12 +67,18 @@ export function NotificationBell() {
       }
       
       console.log('SUCCESS: Notification marked as read:', id)
+      // Remove the notification from the list immediately
       setNotifications((prevNotifications) =>
         (prevNotifications || []).filter((notif) => notif.id !== id)
       );
     } catch (err) {
       console.error('ERROR: Error marking notification as read:', err)
     }
+  }
+
+  const handleNotificationClick = (notif: Notification) => {
+    // Mark as read when clicked
+    markAsRead(notif.id)
   }
 
   const fetchNotifications = async () => {
@@ -167,8 +173,12 @@ export function NotificationBell() {
           notifications.map((notif) => {
             const Icon = icons[notif.type] || Bell
             return (
-              <DropdownMenuItem key={notif.id} asChild onClick={() => markAsRead(notif.id)}>
-                <Link href={notif.link || '#'} className="flex items-start gap-3 w-full">
+              <DropdownMenuItem key={notif.id} asChild>
+                <Link 
+                  href={notif.link || '#'} 
+                  className="flex items-start gap-3 w-full"
+                  onClick={() => handleNotificationClick(notif)}
+                >
                   <Avatar className="h-8 w-8 mt-1">
                     <AvatarImage src={notif.actor_avatar} />
                     <AvatarFallback>

@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 )
@@ -48,7 +49,9 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 			users.avatar_url as actor_avatar
 		FROM notifications 
 		LEFT JOIN users ON notifications.reference_id = users.id
-		WHERE notifications.user_id = ? AND notifications.deleted_at IS NULL
+		WHERE notifications.user_id = ? 
+		AND notifications.deleted_at IS NULL 
+		AND notifications.is_read = 0
 		ORDER BY notifications.created_at DESC
 		LIMIT 50
 	`
@@ -130,11 +133,24 @@ func (nm *NotificationModel) MarkAsRead(ctx context.Context, notificationID, use
 	query := `
 		UPDATE notifications 
 		SET is_read = 1 
-		WHERE id = ? AND user_id = ?
+		WHERE id = ? AND user_id = ? AND deleted_at IS NULL
 	`
-
-	_, err := nm.DB.ExecContext(ctx, query, notificationID, userID)
-	return err
+	
+	result, err := nm.DB.ExecContext(ctx, query, notificationID, userID)
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	
+	if rowsAffected == 0 {
+		return fmt.Errorf("notification not found or already read")
+	}
+	
+	return nil
 }
 
 func (m *NotificationModel) Delete(ctx context.Context, notificationID, userID string) error {
