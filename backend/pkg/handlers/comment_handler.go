@@ -169,10 +169,11 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 		var postOwnerID string
 		err = db.QueryRowContext(ctx, "SELECT user_id FROM posts WHERE id = ?", postID).Scan(&postOwnerID)
 		if err == nil && postOwnerID != userID {
+			log.Printf("DEBUG: Creating comment notification - PostOwner: %s, Commenter: %s, PostID: %s", postOwnerID, userID, postID)
 			notification := models.Notification{
 				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
-				Type:        "new_comment", // Changed from "comment_on_post" to match DB constraint
+				Type:        "new_comment",
 				ReferenceID: postID,
 				IsRead:      false,
 				CreatedAt:   time.Now(),
@@ -187,6 +188,7 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 					
 					// Send real-time notification
 					if hub != nil {
+						log.Printf("DEBUG: Sending real-time comment notification to user: %s", postOwnerID)
 						hub.SendNotification(postOwnerID, notification, map[string]interface{}{
 							"post_id":      postID,
 							"comment_id":   comment.ID,
@@ -195,6 +197,10 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 					}
 				}
 			}
+		} else if err != nil {
+			log.Printf("ERROR: Failed to get post owner for comment notification: %v", err)
+		} else {
+			log.Printf("DEBUG: Not creating comment notification - self-comment detected")
 		}
 
 		w.Header().Set("Content-Type", "application/json")

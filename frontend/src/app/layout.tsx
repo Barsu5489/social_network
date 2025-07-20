@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from '@/components/theme-provider';
 import { UserProvider } from '@/contexts/user-context';
+import { WebSocketProvider } from '@/contexts/websocket-context';
 import AnimatedBackground from '@/components/animated-background';
 
 export const metadata: Metadata = {
@@ -15,11 +16,11 @@ const favicon = "data:image/svg+xml,%3Csvg%20width='42'%20height='42'%20viewBox=
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <head>
         <link rel="icon" href={favicon} type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,8 +36,10 @@ export default function RootLayout({
         >
           <AnimatedBackground />
           <UserProvider>
-            <main>{children}</main>
-            <Toaster />
+            <WebSocketProvider>
+              {children}
+              <Toaster />
+            </WebSocketProvider>
           </UserProvider>
         </ThemeProvider>
       </body>

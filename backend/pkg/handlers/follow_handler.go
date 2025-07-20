@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,6 +20,7 @@ type FollowHandler struct {
 	FollowModel       *models.FollowModel
 	NotificationModel *models.NotificationModel
 	Hub               *websocket.Hub
+	DB                *sql.DB
 }
 
 func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +50,49 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := h.FollowModel.Follow(ctx, followerID, followedID)
+	// Check if the user being followed has a private profile
+	var isPrivate bool
+	err := h.DB.QueryRowContext(ctx, "SELECT is_private FROM users WHERE id = ?", followedID).Scan(&isPrivate)
+	if err != nil {
+		log.Printf("Failed to check user privacy: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if isPrivate {
+		// Create follow request notification instead of direct follow
+		notification := models.Notification{
+			ID:          uuid.New().String(),
+			UserID:      followedID,
+			Type:        "follow_request",
+			ReferenceID: followerID,
+			IsRead:      false,
+			CreatedAt:   time.Now(),
+		}
+
+		_, err = h.NotificationModel.Insert(ctx, notification)
+		if err != nil {
+			log.Printf("ERROR: Failed to create follow request notification: %v", err)
+		} else {
+			log.Printf("SUCCESS: Follow request notification created")
+			if h.Hub != nil {
+				h.Hub.SendNotification(followedID, notification, map[string]interface{}{
+					"follower_id": followerID,
+					"action":      "follow_request",
+				})
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Follow request sent",
+			"status":  "pending",
+		})
+		return
+	}
+
+	// Continue with regular follow logic for public users
+	err = h.FollowModel.Follow(ctx, followerID, followedID)
 	if err != nil {
 		if err.Error() == "cannot follow yourself" || err.Error() == "follow already exists" {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -69,7 +113,7 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:   time.Now(),
 	}
 
-	log.Printf("DEBUG: Creating follow notification - ID: %s, UserID: %s, Type: %s, ReferenceID: %s", 
+	log.Printf("DEBUG: Creating follow notification - ID: %s, UserID: %s, Type: %s, ReferenceID: %s",
 		notification.ID, notification.UserID, notification.Type, notification.ReferenceID)
 
 	_, err = h.NotificationModel.Insert(ctx, notification)

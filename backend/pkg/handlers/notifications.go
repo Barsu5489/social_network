@@ -57,10 +57,19 @@ func (h *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Re
     json.NewEncoder(w).Encode(notifications)
 }
 
-// MarkAsRead marks a notification as read
-func (h *NotificationHandler) MarkAsRead(w http.ResponseWriter, r *http.Request) {
-    userID := r.Context().Value("user_id").(string)
-    
+// MarkNotificationAsRead marks a notification as read
+func (h *NotificationHandler) MarkNotificationAsRead(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    userID, ok := r.Context().Value("user_id").(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
     var req struct {
         NotificationID string `json:"notification_id"`
     }
@@ -75,11 +84,11 @@ func (h *NotificationHandler) MarkAsRead(w http.ResponseWriter, r *http.Request)
 
     err := h.NotificationModel.MarkAsRead(ctx, req.NotificationID, userID)
     if err != nil {
-        log.Printf("Failed to mark notification as read: %v", err)
+        log.Printf("ERROR: Failed to mark notification as read: %v", err)
         http.Error(w, "Internal server error", http.StatusInternalServerError)
         return
     }
 
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]bool{"success": true})
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }

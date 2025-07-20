@@ -106,6 +106,7 @@ func main() {
 		FollowModel:       followModel,
 		NotificationModel: notificationModel,
 		Hub:               hub,
+		DB:                db,
 	}
 	notificationHandler := handlers.NewNotificationHandler(notificationModel)
 
@@ -126,7 +127,7 @@ func main() {
 
 	// Notification routes
 	router.HandleFunc("/api/notifications", auth.RequireAuth(notificationHandler.GetNotifications)).Methods("GET")
-	router.HandleFunc("/api/notifications/mark-read", auth.RequireAuth(notificationHandler.MarkAsRead)).Methods("POST")
+	router.HandleFunc("/api/notifications/mark-read", notificationHandler.MarkNotificationAsRead).Methods("POST")
 
 	// Group routes
 	registerGroupRoutes(router, groupHandler)

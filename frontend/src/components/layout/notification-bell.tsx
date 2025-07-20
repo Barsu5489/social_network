@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,29 +10,41 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Bell, UserPlus, Users } from "lucide-react"
+import { Bell, UserPlus, Users, Calendar, MessageSquare, Heart, UserCheck } from "lucide-react"
 import Link from "next/link"
 import { API_BASE_URL } from '@/lib/config';
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { useWebSocket } from "@/contexts/websocket-context"
 
 type Notification = {
   id: string
   type: string
-  user: { name: string; avatar: string }
   message: string
-  time: string
-  href: string
+  link: string
+  is_read: boolean
+  created_at: number
+  reference_id: string
+  actor_nickname?: string
+  actor_avatar?: string
 }
 
 const icons: { [key: string]: React.ElementType } = {
   follow_request: UserPlus,
-  group_invite: Users
+  new_follower: UserCheck,
+  group_invite: Users,
+  group_join_request: Users,
+  event_created: Calendar,
+  new_message: MessageSquare,
+  new_like: Heart,
+  new_comment: MessageSquare,
+  group_join_response: Users,
+  group_invitation_response: Users
 }
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
-  const ws = useRef<WebSocket | null>(null)
+  const { ws } = useWebSocket()
 
   const markAsRead = async (id: string) => {
     console.log('DEBUG: Marking notification as read:', id)
@@ -47,7 +59,6 @@ export function NotificationBell() {
         }),
         credentials: 'include',
       });
-      console.log('DEBUG: Mark as read response status:', res.status)
       
       if (!res.ok) {
         const errorText = await res.text();
@@ -56,14 +67,13 @@ export function NotificationBell() {
       }
       
       console.log('SUCCESS: Notification marked as read:', id)
-      // Update the notifications state to remove the read notification
       setNotifications((prevNotifications) =>
         (prevNotifications || []).filter((notif) => notif.id !== id)
       );
     } catch (err) {
-      console.error('ERROR: Error marking notification as read:', err);
+      console.error('ERROR: Error marking notification as read:', err)
     }
-  };
+  }
 
   const fetchNotifications = async () => {
     console.log('DEBUG: Fetching notifications...')
@@ -71,7 +81,6 @@ export function NotificationBell() {
       const res = await fetch(`${API_BASE_URL}/api/notifications`, {
         credentials: 'include'
       })
-      console.log('DEBUG: Notifications fetch response status:', res.status)
       
       if (!res.ok) {
         console.error('ERROR: Notifications fetch failed with status:', res.status);
@@ -80,15 +89,8 @@ export function NotificationBell() {
       const data = await res.json()
       console.log('DEBUG: Notifications data received:', data)
       
-      // Handle both array and null responses
-      let notificationsArray = []
-      if (Array.isArray(data)) {
-        notificationsArray = data
-      } else if (data && Array.isArray(data.notifications)) {
-        notificationsArray = data.notifications
-      } else if (data === null) {
-        notificationsArray = []
-      }
+      // Handle the array response directly
+      const notificationsArray = Array.isArray(data) ? data : []
       
       console.log('DEBUG: Number of notifications:', notificationsArray.length)
       setNotifications(notificationsArray)
@@ -97,20 +99,14 @@ export function NotificationBell() {
       setNotifications([])
     } finally {
       setLoading(false)
-      console.log('DEBUG: Notifications fetch completed')
     }
   }
 
-  // Setup WebSocket for real-time notifications
+  // Listen for WebSocket notifications
   useEffect(() => {
-    console.log('Setting up WebSocket for notifications...')
-    ws.current = new WebSocket(`ws://localhost:3000/ws`)
-    
-    ws.current.onopen = () => {
-      console.log('Notification WebSocket connected')
-    }
+    if (!ws) return
 
-    ws.current.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const messageData = JSON.parse(event.data)
         console.log('DEBUG: WebSocket notification received:', messageData)
@@ -125,26 +121,29 @@ export function NotificationBell() {
       }
     }
 
-    ws.current.onerror = (error) => {
-      console.error('Notification WebSocket error:', error)
-    }
-
-    ws.current.onclose = () => {
-      console.log('Notification WebSocket disconnected')
-    }
+    ws.addEventListener('message', handleMessage)
 
     return () => {
-      if (ws.current) {
-        ws.current.close()
-      }
+      ws.removeEventListener('message', handleMessage)
     }
-  }, [])
+  }, [ws])
 
   useEffect(() => {
     fetchNotifications()
   }, [])
 
   const hasUnread = notifications && notifications.length > 0
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp * 1000) // Convert Unix timestamp to milliseconds
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return `${Math.floor(diffInMinutes / 1440)}d ago`
+  }
 
   return (
     <DropdownMenu>
@@ -169,16 +168,18 @@ export function NotificationBell() {
             const Icon = icons[notif.type] || Bell
             return (
               <DropdownMenuItem key={notif.id} asChild onClick={() => markAsRead(notif.id)}>
-                <Link href={notif.href || '#'} className="flex items-start gap-3 w-full">
+                <Link href={notif.link || '#'} className="flex items-start gap-3 w-full">
                   <Avatar className="h-8 w-8 mt-1">
-                    <AvatarImage src={notif.user.avatar} />
-                    <AvatarFallback>{notif.user.name[0]}</AvatarFallback>
+                    <AvatarImage src={notif.actor_avatar} />
+                    <AvatarFallback>
+                      {notif.actor_nickname ? notif.actor_nickname[0] : <Icon className="h-4 w-4" />}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="text-sm">
                     <p>
-                      <span className="font-semibold">{notif.user.name}</span> {notif.message}
+                      <span className="font-semibold">{notif.actor_nickname || 'Someone'}</span> {notif.message}
                     </p>
-                    <p className="text-xs text-muted-foreground">{notif.time}</p>
+                    <p className="text-xs text-muted-foreground">{formatTime(notif.created_at)}</p>
                   </div>
                 </Link>
               </DropdownMenuItem>

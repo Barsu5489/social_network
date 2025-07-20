@@ -66,6 +66,7 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 		postOwnerStmt := `SELECT user_id FROM posts WHERE id = ?`
 		err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
 		if err == nil && postOwnerID != userID {
+			log.Printf("DEBUG: Creating like notification - PostOwner: %s, Liker: %s, PostID: %s", postOwnerID, userID, likeableID)
 			// Don't notify for self-likes
 			notification := Notification{
 				ID:          uuid.New().String(),
@@ -77,10 +78,14 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 			}
 			_, err = notificationModel.Insert(ctx, notification)
 			if err != nil {
-				fmt.Printf("Failed to create notification for like: %v\n", err)
+				log.Printf("ERROR: Failed to create notification for like: %v", err)
 			} else {
 				log.Printf("SUCCESS: Like notification created for post owner: %s", postOwnerID)
 			}
+		} else if err != nil {
+			log.Printf("ERROR: Failed to get post owner for like notification: %v", err)
+		} else {
+			log.Printf("DEBUG: Not creating like notification - self-like detected")
 		}
 	}
 
