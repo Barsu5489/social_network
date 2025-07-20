@@ -153,11 +153,11 @@ func main() {
 	})
 
 	// Like routes
-	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
-	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel, hub))).Methods("POST")
+	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel, hub))).Methods("DELETE")
 	router.HandleFunc("/api/posts/{post_id}/likes", auth.RequireAuth(handlers.GetPostLikes(db))).Methods("GET")
-	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods("POST")
-	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel))).Methods("DELETE")
+	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel, hub))).Methods("POST")
+	router.HandleFunc("/api/comments/{comment_id}/like", auth.RequireAuth(handlers.LikeComment(db, notificationModel, hub))).Methods("DELETE")
 	router.HandleFunc("/api/comments/{comment_id}/likes", auth.RequireAuth(handlers.GetCommentLikes(db))).Methods("GET")
 
 	// Enable CORS

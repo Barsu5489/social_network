@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"social-nework/pkg/models"
+	"social-nework/pkg/websocket"
 
 	"github.com/gorilla/mux"
 )
 
 // LikePost handles like/unlike requests for posts
-func LikePost(db *sql.DB, notificationModel *models.NotificationModel) http.HandlerFunc {
+func LikePost(db *sql.DB, notificationModel *models.NotificationModel, hub *websocket.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the user ID from context (from auth middleware)
 		userID, ok := r.Context().Value("user_id").(string)
@@ -65,7 +66,7 @@ func LikePost(db *sql.DB, notificationModel *models.NotificationModel) http.Hand
 
 		if isLike {
 			// Like the post
-			like, err := models.CreateLike(db, ctx, notificationModel, nil, userID, "post", postID)
+			like, err := models.CreateLike(db, ctx, notificationModel, hub, userID, "post", postID)
 			if err != nil {
 				// If the error is because user already liked the post, return a specific status code
 				if err.Error() == "user already liked this content" {
