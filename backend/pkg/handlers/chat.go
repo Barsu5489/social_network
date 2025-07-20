@@ -82,6 +82,45 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// For direct chats, verify follow relationship still exists
+	chatType, err := h.chatRepo.GetChatType(chatID)
+	if err != nil {
+		log.Printf("SendMessage: Error getting chat type: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if chatType == "direct" {
+		participants, err := h.chatRepo.GetChatParticipants(chatID)
+		if err != nil {
+			log.Printf("SendMessage: Error getting chat participants: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		var recipientID string
+		for _, participantID := range participants {
+			if participantID != userID {
+				recipientID = participantID
+				break
+			}
+		}
+
+		if recipientID != "" {
+			canChat, err := h.chatRepo.CanUsersChat(userID, recipientID)
+			if err != nil {
+				log.Printf("SendMessage: Error checking chat permissions: %v", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			if !canChat {
+				http.Error(w, "Cannot send message: follow relationship required", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
 	log.Printf("SendMessage: User verified in chat, creating message")
 
 	// Create message
@@ -102,17 +141,18 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("SendMessage: Message saved to database")
-
-	// Get sender info for websocket broadcast
+	// Get sender info for response
 	var sender models.User
 	err = h.chatRepo.DB.QueryRow(`
-		SELECT first_name, last_name, avatar_url 
+		SELECT first_name, last_name, avatar_url
 		FROM users WHERE id = ?`, userID).Scan(
 		&sender.FirstName, &sender.LastName, &sender.AvatarURL)
 	if err != nil {
 		log.Printf("SendMessage: Error getting sender info: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
+
 	message.Sender = sender
 
 	log.Printf("SendMessage: Retrieved sender info: %+v", sender)
@@ -180,6 +220,19 @@ func (h *ChatHandler) CreateDirectChat(w http.ResponseWriter, r *http.Request) {
 
 	if req.RecipientID == userID {
 		http.Error(w, "Cannot create chat with yourself", http.StatusBadRequest)
+		return
+	}
+
+	// Check if users can chat (follow relationship required)
+	canChat, err := h.chatRepo.CanUsersChat(userID, req.RecipientID)
+	if err != nil {
+		log.Printf("Error checking chat permissions: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !canChat {
+		http.Error(w, "Cannot create chat: users must follow each other or recipient must have public profile", http.StatusForbidden)
 		return
 	}
 

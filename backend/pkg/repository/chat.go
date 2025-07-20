@@ -372,13 +372,39 @@ func (r *ChatRepository) SoftDeleteChat(chatID string) error {
 	return err
 }
 
-// GetChatType returns the type of a chat
+// GetChatType returns the type of a chat (direct or group)
 func (r *ChatRepository) GetChatType(chatID string) (string, error) {
 	var chatType string
 	err := r.DB.QueryRow(`
-		SELECT type FROM chats 
-		WHERE id = ? AND deleted_at IS NULL`, chatID).Scan(&chatType)
+		SELECT type FROM chats WHERE id = ? AND deleted_at IS NULL`,
+		chatID).Scan(&chatType)
 	return chatType, err
+}
+
+// CanUsersChat checks if two users can chat based on follow relationship or public profile
+func (r *ChatRepository) CanUsersChat(userID1, userID2 string) (bool, error) {
+	// Check if either user follows the other OR if recipient has public profile
+	var canChat bool
+	err := r.DB.QueryRow(`
+		SELECT CASE 
+			WHEN EXISTS (
+				SELECT 1 FROM follows 
+				WHERE (follower_id = ? AND followed_id = ?) 
+				   OR (follower_id = ? AND followed_id = ?)
+			) THEN 1
+			WHEN EXISTS (
+				SELECT 1 FROM users 
+				WHERE id = ? AND is_private = 0
+			) THEN 1
+			WHEN EXISTS (
+				SELECT 1 FROM users 
+				WHERE id = ? AND is_private = 0
+			) THEN 1
+			ELSE 0
+		END as can_chat`,
+		userID1, userID2, userID2, userID1, userID1, userID2).Scan(&canChat)
+	
+	return canChat, err
 }
 
 // GetChatCount returns the number of chats a user is in
