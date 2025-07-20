@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/user-context';
+import { useWebSocket } from '@/contexts/websocket-context';
 import { API_BASE_URL } from '@/lib/config';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SendHorizontal } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ChatLayout } from '@/components/chat/chat-layout';
@@ -43,8 +44,8 @@ function ChatView({ chatId }: { chatId: string }) {
     const [isSending, setIsSending] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
-    const ws = useRef<WebSocket | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const { ws, sendMessage } = useWebSocket(); // Use global WebSocket
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -97,63 +98,38 @@ function ChatView({ chatId }: { chatId: string }) {
 
     // Setup WebSocket
     useEffect(() => {
-        if (!user?.id || !chatId) return;
+        if (!ws || !chatId || !user?.id) return;
 
-        console.log('Attempting WebSocket connection to:', `ws://localhost:3000/ws`);
-        ws.current = new WebSocket(`ws://localhost:3000/ws`);
-        
-        ws.current.onopen = () => {
-            console.log('WebSocket connected to backend');
-            if (ws.current && user?.id) {
-                ws.current.send(JSON.stringify({
-                    type: 'join_chat',
-                    chat_id: chatId,
-                    user_id: user.id
-                }));
-            }
-        };
+        console.log('Setting up WebSocket message listener for chat:', chatId);
 
-        ws.current.onmessage = (event) => {
-            console.log('DEBUG: WebSocket message received:', event.data);
+        const handleMessage = (event: MessageEvent) => {
             try {
-                const messageData = JSON.parse(event.data);
-                console.log('DEBUG: Parsed message data:', messageData);
-                
-                if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
-                    console.log('DEBUG: Processing new chat message');
-                    const newMessage = messageData.data;
-                    setMessages((prevMessages) => {
-                        if (prevMessages.some(m => m.id === newMessage.id)) {
-                            console.log('DEBUG: Message already exists, skipping');
-                            return prevMessages;
-                        }
-                        console.log('DEBUG: Adding new message to chat');
-                        return [...prevMessages, newMessage];
-                    });
-                } else if (messageData.type === 'notification') {
-                    console.log('DEBUG: Received notification via WebSocket:', messageData.data);
-                    // Don't create notifications for messages in the current chat
-                    // The notification bell will handle this
+                const data = JSON.parse(event.data);
+                console.log('Chat WebSocket message received:', data);
+
+                if (data.type === 'new_message' && data.chat_id === chatId) {
+                    console.log('New message for this chat:', data.data);
+                    const newMessage: Message = {
+                        id: data.data.id,
+                        chat_id: data.data.chat_id,
+                        sender_id: data.data.sender_id,
+                        content: data.data.content,
+                        sent_at: data.data.sent_at,
+                        sender: data.data.sender
+                    };
+                    setMessages(prev => [...prev, newMessage]);
                 }
             } catch (error) {
-                console.error('ERROR: Failed to parse WebSocket message:', error);
+                console.error('Error parsing WebSocket message:', error);
             }
         };
 
-        ws.current.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        ws.current.onclose = () => {
-            console.log('WebSocket disconnected');
-        };
+        ws.addEventListener('message', handleMessage);
 
         return () => {
-            if (ws.current) {
-                ws.current.close();
-            }
+            ws.removeEventListener('message', handleMessage);
         };
-    }, [user?.id, chatId]);
+    }, [ws, chatId, user?.id]);
 
     const handleSendMessage = async (messageContent: string) => {
         if (!user?.id || !chatId || !messageContent.trim() || isSending) return;
@@ -285,7 +261,7 @@ function ChatView({ chatId }: { chatId: string }) {
                         }}
                     />
                     <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
-                        <SendHorizontal className="h-5 w-5" />
+                        <Send className="h-5 w-5" />
                     </Button>
                 </form>
             </div>
