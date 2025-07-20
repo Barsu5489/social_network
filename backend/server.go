@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -25,6 +26,7 @@ func setupChatSystem(db *sql.DB, router *mux.Router, notificationModel *models.N
 
 	// Initialize WebSocket hub
 	hub := websocket.NewHub(db, messageRepo, chatRepo)
+	hub.SetNotificationModel(notificationModel) // Set the notification model
 	go hub.Run() // Start the hub in a goroutine
 	// Initialize HTTP handlers with all required repositories
 	chatHandler := handlers.NewChatHandler(chatRepo, messageRepo, groupRepo, hub, notificationModel)
@@ -63,18 +65,18 @@ func registerGroupRoutes(router *mux.Router, handler *groups.GroupHandler) {
 	router.HandleFunc("/api/groups/{groupId}/join", auth.RequireAuth(handler.JoinGroup)).Methods("POST")
 	router.HandleFunc("/api/groups/{groupId}/leave", auth.RequireAuth(handler.LeaveGroup)).Methods("POST")
 	router.HandleFunc("/api/groups/join/{groupId}", auth.RequireAuth(handler.RequestToJoinGroup)).Methods("POST")
-	
+
 	// Group content routes
 	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(handler.GetGroupPosts)).Methods("GET")
 	router.HandleFunc("/api/groups/{groupId}/posts", auth.RequireAuth(handler.CreateGroupPost)).Methods("POST")
 	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(handler.GetGroupEvents)).Methods("GET")
 	router.HandleFunc("/api/groups/{groupId}/events", auth.RequireAuth(handler.CreateEvent)).Methods("POST")
 	router.HandleFunc("/api/groups/{groupId}/events/{eventId}/rsvp", auth.RequireAuth(handler.RSVPEvent)).Methods("POST")
-	
+
 	// Group invitation routes
 	router.HandleFunc("/api/groups/invite", auth.RequireAuth(handler.InviteToGroup)).Methods("POST")
 	router.HandleFunc("/api/invitations/{id}/respond", auth.RequireAuth(handler.RespondToInvitation)).Methods("POST")
-	
+
 	// Group chat route
 	router.HandleFunc("/api/groups/{groupId}/chat", auth.RequireAuth(handler.GetGroupChat)).Methods("GET")
 }
@@ -101,7 +103,7 @@ func main() {
 	// Handlers with hub for real-time notifications
 	authHandler := &handlers.AuthHandler{UserModel: userModel}
 	followHandler := &handlers.FollowHandler{
-		FollowModel:       followModel, 
+		FollowModel:       followModel,
 		NotificationModel: notificationModel,
 		Hub:               hub,
 	}
@@ -135,6 +137,20 @@ func main() {
 	router.HandleFunc("/api/posts/{post_id}", auth.RequireAuth(handlers.DeletPost(db))).Methods("DELETE")
 	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
 	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
+
+	// Comment routes
+	router.HandleFunc("/comments/{postId}", handlers.GetPostComments(db)).Methods("GET")
+	router.HandleFunc("/comment/{postId}", auth.RequireAuth(handlers.CreateComment(db, notificationModel, hub))).Methods("POST")
+
+	// Add debugging middleware for comment routes
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "comment") {
+				log.Printf("DEBUG: Comment route accessed - Method: %s, Path: %s", r.Method, r.URL.Path)
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	// Enable CORS
 	c := cors.New(cors.Options{

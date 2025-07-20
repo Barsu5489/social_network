@@ -36,13 +36,21 @@ export function NotificationBell() {
   const markAsRead = async (id: string) => {
     console.log('DEBUG: Marking notification as read:', id)
     try {
-      const res = await fetch(`${API_BASE_URL}/api/notifications/${id}`, {
-        method: 'PUT',
+      const res = await fetch(`${API_BASE_URL}/api/notifications/mark-read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notification_id: id
+        }),
         credentials: 'include',
       });
       console.log('DEBUG: Mark as read response status:', res.status)
       
       if (!res.ok) {
+        const errorText = await res.text();
+        console.error('ERROR: Mark as read failed:', errorText);
         throw new Error('Failed to mark notification as read');
       }
       

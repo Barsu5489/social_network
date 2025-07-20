@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"social-nework/pkg/repository"
+	"social-nework/pkg/models"
 )
 
 type Hub struct {
@@ -20,15 +21,17 @@ type Hub struct {
 	mu           sync.RWMutex
 
 	// Database dependencies
-	db          *sql.DB
-	messageRepo *repository.MessageRepository
-	chatRepo    *repository.ChatRepository
+	db               *sql.DB
+	messageRepo      *repository.MessageRepository
+	chatRepo         *repository.ChatRepository
+	notificationModel *models.NotificationModel
 }
 type ChatRoom struct {
-	ID        string
-	Type      string // "direct" or "group"
-	Members   map[string]*Client
-	CreatedAt time.Time
+	ID           string
+	Type         string // "direct" or "group"
+	Members      map[string]*Client
+	Participants map[string]*Client
+	CreatedAt    time.Time
 }
 
 type MessagePayload struct {
@@ -293,4 +296,9 @@ func (h *Hub) cleanupDisconnectedClient(client *Client) {
 			delete(h.ChatRooms, chatRoom.ID)
 		}
 	}
+}
+
+// Add method to set notification model
+func (h *Hub) SetNotificationModel(notificationModel *models.NotificationModel) {
+	h.notificationModel = notificationModel
 }
