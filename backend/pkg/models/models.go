@@ -65,6 +65,7 @@ type Group struct {
 	IsPrivate   bool   `json:"is_private"`
 	CreatedAt   int64  `json:"created_at"`
 	UpdatedAt   int64  `json:"updated_at"`
+	MemberCount int    `json:"member_count,omitempty"`
 }
 
 type GroupMember struct {
