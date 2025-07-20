@@ -16,28 +16,19 @@ export default function HomeLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Only redirect if we're done loading and there's no user
     if (!isLoading && !user) {
-      console.log('No user found, redirecting to login')
       router.replace('/');
     }
   }, [user, isLoading, router]);
 
-  // Show loader while checking authentication
-  if (isLoading) {
+  if (isLoading || !user) {
     return <PageLoader />;
   }
 
-  // Show loader while redirecting
-  if (!user) {
-    return <PageLoader />;
-  }
-
-  // User is authenticated, show the layout
   return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
+    <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex flex-col bg-background/80 backdrop-blur-sm border-r border-l">
+      <div className="flex-1 flex flex-col">
         <Header />
         {children}
       </div>

@@ -27,38 +27,30 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+    <header className="flex h-14 items-center gap-4 border-b bg-card px-4">
       <MobileNav />
       <div className="flex w-full flex-1 justify-center">
-        <form className="w-full lg:w-1/2 xl:w-1/3">
+        <form className="w-full max-w-md">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search posts, groups, or people..."
-              className="w-full appearance-none bg-background pl-8 shadow-none"
+              placeholder="Search..."
+              className="w-full pl-8"
             />
           </div>
         </form>
       </div>
       <Link href="/chat">
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon">
           <MessageSquare className="h-5 w-5" />
-          <span className="sr-only">Chat</span>
         </Button>
       </Link>
       <NotificationBell />
-      {user && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleLogout}
-          className="flex items-center gap-2"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
-      )}
+      <Button variant="outline" size="sm" onClick={handleLogout}>
+        <LogOut className="h-4 w-4 mr-2" />
+        Logout
+      </Button>
     </header>
   );
 }
