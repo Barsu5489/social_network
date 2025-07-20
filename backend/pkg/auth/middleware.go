@@ -2,35 +2,36 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
+	"log"
 	"net/http"
 )
-
-// type contextKey string
-
-// const userIDKey contextKey = "user_id"
 
 // RequireAuth middleware checks if a user is authenticated
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get user ID from session
-		userID, err := GetUserIDFromSession(r)
+		log.Printf("DEBUG: Auth middleware - Path: %s, Method: %s", r.URL.Path, r.Method)
+
+		cookie, err := r.Cookie("social-network-session")
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Authentication required",
-			})
+			log.Printf("DEBUG: No session cookie found for path: %s", r.URL.Path)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Add user ID to request context
-		ctx := r.Context()
-		// ctx = context.WithValue(ctx, userIDKey, userID)
-		ctx = context.WithValue(ctx, "user_id", userID)
+		log.Printf("DEBUG: Session cookie found: %s", cookie.Value[:10]+"...")
 
-		// Call the next handler with the updated context
-		next(w, r.WithContext(ctx))
+		// Validate session and get user ID
+		userID, err := GetUserIDFromSession(r)
+		if err != nil {
+			log.Printf("DEBUG: Invalid session for path: %s, error: %v", r.URL.Path, err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		log.Printf("DEBUG: Valid session for user: %s, path: %s", userID, r.URL.Path)
+
+		// Add user ID to request context
+		ctx := context.WithValue(r.Context(), "user_id", userID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
