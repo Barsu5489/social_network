@@ -16,26 +16,31 @@ export default function HomeLayout({
   const router = useRouter();
 
   useEffect(() => {
+    // Only redirect if we're done loading and there's no user
     if (!isLoading && !user) {
+      console.log('No user found, redirecting to login')
       router.replace('/');
     }
   }, [user, isLoading, router]);
 
+  // Show loader while checking authentication
   if (isLoading) {
     return <PageLoader />;
   }
 
-  if (user) {
-    return (
-      <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-        <Sidebar />
-        <div className="flex flex-col bg-background/80 backdrop-blur-sm border-r border-l">
-          <Header />
-          {children}
-        </div>
-      </div>
-    );
+  // Show loader while redirecting
+  if (!user) {
+    return <PageLoader />;
   }
 
-  return <PageLoader />;
+  // User is authenticated, show the layout
+  return (
+    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
+      <Sidebar />
+      <div className="flex flex-col bg-background/80 backdrop-blur-sm border-r border-l">
+        <Header />
+        {children}
+      </div>
+    </div>
+  );
 }

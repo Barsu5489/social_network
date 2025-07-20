@@ -1,6 +1,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { API_BASE_URL } from '@/lib/config';
 
 // This interface matches the 'data' object in the successful login response
 // and the shape of the user object in the profile response.
@@ -22,42 +23,70 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUserState] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUserState] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasInitialized, setHasInitialized] = useState(false)
+
+  const setUser = useCallback((userData: User | null) => {
+    setUserState(userData)
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData))
+    } else {
+      localStorage.removeItem('user')
+    }
+  }, [])
 
   useEffect(() => {
-    // This effect runs only on the client-side
-    try {
-      const storedUser = localStorage.getItem('connectu-user');
+    const initializeUser = async () => {
+      if (hasInitialized) return
+      
+      setIsLoading(true)
+      
+      // First check localStorage
+      const storedUser = localStorage.getItem('user')
       if (storedUser) {
-        setUserState(JSON.parse(storedUser));
+        try {
+          const userData = JSON.parse(storedUser)
+          setUserState(userData)
+        } catch (error) {
+          console.error('Error parsing stored user:', error)
+          localStorage.removeItem('user')
+        }
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
-  const setUser = useCallback((user: User | null) => {
-    setUserState(user);
-    if (user) {
-      localStorage.setItem('connectu-user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('connectu-user');
+      // Then verify with server
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/profile`, {
+          credentials: 'include',
+        })
+        
+        if (response.ok) {
+          const userData = await response.json()
+          console.log('User verified with server:', userData.id)
+          setUser(userData)
+        } else {
+          console.log('No valid session, clearing user')
+          setUser(null)
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+        setHasInitialized(true)
+      }
     }
-  }, []);
-  
-  const value = useMemo(() => ({ user, setUser, isLoading }), [user, setUser, isLoading]);
 
+    initializeUser()
+  }, []) // Empty dependency array - only run once
 
   return (
-    <UserContext.Provider value={value}>
+    <UserContext.Provider value={{ user, setUser, isLoading }}>
       {children}
     </UserContext.Provider>
-  );
-};
+  )
+}
 
 export const useUser = () => {
   const context = useContext(UserContext);

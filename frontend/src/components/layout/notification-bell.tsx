@@ -120,26 +120,17 @@ export function NotificationBell() {
 
   // Listen for WebSocket notifications
   useEffect(() => {
-    if (!ws) {
-      console.log('DEBUG: NotificationBell - No WebSocket connection available')
-      return
-    }
-    console.log('DEBUG: NotificationBell - Setting up WebSocket listener')
+    if (!ws) return
 
     const handleMessage = (event: MessageEvent) => {
-      console.log('DEBUG: NotificationBell - Raw WebSocket message received:', event.data)
       try {
         const messageData = JSON.parse(event.data)
-        console.log('DEBUG: NotificationBell - Parsed WebSocket message:', messageData)
+        console.log('DEBUG: WebSocket notification received:', messageData)
         
         if (messageData.type === 'notification') {
-          console.log('DEBUG: NotificationBell - Processing notification type message')
-          console.log('DEBUG: NotificationBell - Full messageData:', JSON.stringify(messageData, null, 2))
-          
-          // The notification data is in messageData.data
+          console.log('DEBUG: Processing real-time notification')
+          // The notification data is nested in messageData.data
           const notificationPayload = messageData.data
-          console.log('DEBUG: NotificationBell - Notification payload:', notificationPayload)
-          
           if (notificationPayload && notificationPayload.notification) {
             const newNotification = {
               id: notificationPayload.notification.id,
@@ -153,29 +144,18 @@ export function NotificationBell() {
               actor_avatar: notificationPayload.data?.actor_avatar
             }
             
-            console.log('DEBUG: NotificationBell - Adding new notification to state:', newNotification)
-            setNotifications(prev => {
-              console.log('DEBUG: NotificationBell - Previous notifications:', prev)
-              const updated = [newNotification, ...(prev || [])]
-              console.log('DEBUG: NotificationBell - Updated notifications:', updated)
-              return updated
-            })
-          } else {
-            console.log('DEBUG: NotificationBell - Invalid notification payload structure:', notificationPayload)
+            console.log('DEBUG: Adding new notification:', newNotification)
+            setNotifications(prev => [newNotification, ...(prev || [])])
           }
-        } else {
-          console.log('DEBUG: NotificationBell - Non-notification message type:', messageData.type)
         }
       } catch (error) {
-        console.error('ERROR: NotificationBell - Failed to parse WebSocket message:', error)
+        console.error('ERROR: Failed to parse WebSocket notification:', error)
       }
     }
 
     ws.addEventListener('message', handleMessage)
-    console.log('DEBUG: NotificationBell - WebSocket listener added')
 
     return () => {
-      console.log('DEBUG: NotificationBell - Removing WebSocket listener')
       ws.removeEventListener('message', handleMessage)
     }
   }, [ws])
