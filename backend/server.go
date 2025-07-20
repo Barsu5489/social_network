@@ -166,6 +166,7 @@ func main() {
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
+		Debug:            true, // Add debug logging
 	})
 
 	handler := c.Handler(router)

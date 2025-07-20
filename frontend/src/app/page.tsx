@@ -286,7 +286,7 @@ export default function AuthPage() {
 
         if (response.ok) {
             const data = await response.json();
-            setUser(data.data); // Save user to context/localStorage
+            setUser(data.user); // Change from data.data to data.user
             router.push('/home');
         } else {
             let errorMessage = 'Please check your credentials and try again.';

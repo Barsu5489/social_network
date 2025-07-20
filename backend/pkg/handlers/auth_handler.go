@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
 	"social-nework/pkg/auth"
 	"social-nework/pkg/models"
+
+	"github.com/google/uuid"
 )
 
 type UserModel interface {
@@ -89,30 +89,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// After successful authentication
-	sessionToken := uuid.New().String()
-	expiresAt := time.Now().Add(24 * time.Hour)
+	log.Printf("DEBUG: Authentication successful for user: %s (ID: %s)", user.Email, user.ID)
 
 	// Store session
+	log.Printf("DEBUG: Attempting to create session for user ID: %s", user.ID)
 	err = auth.CreateSession(w, r, user.ID)
 	if err != nil {
 		log.Printf("ERROR: Failed to store session: %v", err)
+		log.Printf("DEBUG: User ID type: %T, value: %q", user.ID, user.ID)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Set cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "social-network-session",
-		Value:    sessionToken,
-		Expires:  expiresAt,
-		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		SameSite: http.SameSiteLaxMode,
-		Path:     "/",
-	})
-
-	log.Printf("SUCCESS: User logged in successfully: %s, session: %s", user.Email, sessionToken[:10]+"...")
+	log.Printf("SUCCESS: Session created successfully for user: %s", user.Email)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
