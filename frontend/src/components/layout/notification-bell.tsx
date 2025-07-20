@@ -34,40 +34,52 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(true)
 
   const markAsRead = async (id: string) => {
+    console.log('DEBUG: Marking notification as read:', id)
     try {
       const res = await fetch(`${API_BASE_URL}/api/notifications/${id}`, {
         method: 'PUT',
         credentials: 'include',
       });
+      console.log('DEBUG: Mark as read response status:', res.status)
+      
       if (!res.ok) {
         throw new Error('Failed to mark notification as read');
       }
+      
+      console.log('SUCCESS: Notification marked as read:', id)
       // Update the notifications state to remove the read notification
       setNotifications((prevNotifications) =>
         (prevNotifications || []).filter((notif) => notif.id !== id)
       );
     } catch (err) {
-      console.error('Error marking notification as read:', err);
+      console.error('ERROR: Error marking notification as read:', err);
     }
   };
 
   useEffect(() => {
     const fetchNotifications = async () => {
+      console.log('DEBUG: Fetching notifications...')
       try {
         const res = await fetch(`${API_BASE_URL}/api/notifications`, {
           credentials: 'include'
         })
+        console.log('DEBUG: Notifications fetch response status:', res.status)
+        
         if (!res.ok) {
-          console.error('Notifications fetch failed with status:', res.status);
+          console.error('ERROR: Notifications fetch failed with status:', res.status);
           throw new Error('Failed to fetch notifications')
         }
         const data = await res.json()
+        console.log('DEBUG: Notifications data received:', data)
+        console.log('DEBUG: Number of notifications:', Array.isArray(data) ? data.length : 'Not an array')
+        
         setNotifications(Array.isArray(data) ? data : [])
       } catch (err) {
-        console.error('Error fetching notifications:', err)
+        console.error('ERROR: Error fetching notifications:', err)
         setNotifications([]) // Ensure notifications is always an array
       } finally {
         setLoading(false)
+        console.log('DEBUG: Notifications fetch completed')
       }
     }
 

@@ -114,23 +114,32 @@ function ChatView({ chatId }: { chatId: string }) {
         };
 
         ws.current.onmessage = (event) => {
-            console.log('WebSocket message received:', event.data);
+            console.log('DEBUG: WebSocket message received:', event.data);
             try {
                 const messageData = JSON.parse(event.data);
+                console.log('DEBUG: Parsed message data:', messageData);
                 
                 if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
+                    console.log('DEBUG: Processing new chat message');
                     const newMessage = messageData.data;
                     setMessages((prevMessages) => {
                         if (prevMessages.some(m => m.id === newMessage.id)) {
+                            console.log('DEBUG: Message already exists, skipping');
                             return prevMessages;
                         }
+                        console.log('DEBUG: Adding new message to chat');
                         return [...prevMessages, newMessage];
                     });
                 } else if (messageData.type === 'notification') {
-                    console.log('Received notification:', messageData.data);
+                    console.log('DEBUG: Received notification via WebSocket:', messageData.data);
+                    console.log('DEBUG: Notification type:', messageData.data?.notification?.type);
+                    console.log('DEBUG: Notification for user:', messageData.data?.notification?.user_id);
+                    
+                    // TODO: Update notification bell or show toast notification
+                    // This should trigger a refresh of the notification bell
                 }
             } catch (error) {
-                console.error('Failed to parse WebSocket message:', error);
+                console.error('ERROR: Failed to parse WebSocket message:', error);
             }
         };
 
@@ -291,6 +300,7 @@ function ChatView({ chatId }: { chatId: string }) {
 export default function SingleChatPage() {
     const params = useParams();
     const chatId = params.chatId as string;
+    const [isLoading, setIsLoading] = useState(false);
     
     // We can't access server-side cookies in a client component.
     // So we'll let the ChatLayout use its default.
@@ -304,5 +314,4 @@ export default function SingleChatPage() {
         </div>
     )
 }
-const [isLoading, setIsLoading] = useState(false);
 

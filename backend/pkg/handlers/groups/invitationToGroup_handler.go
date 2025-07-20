@@ -2,6 +2,7 @@ package groups
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"social-nework/pkg/models"
 	"time"
@@ -73,10 +74,26 @@ func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 		IsRead:      false,
 		CreatedAt:   time.Now(),
 	}
+
+	log.Printf("DEBUG: Creating group invitation notification - UserID: %s, Type: %s, GroupID: %s", 
+		notification.UserID, notification.Type, notification.ReferenceID)
+
 	_, err = gh.NotificationModel.Insert(r.Context(), notification)
 	if err != nil {
+		log.Printf("ERROR: Failed to create group invitation notification: %v", err)
 		http.Error(w, "Failed to create notification for group invitation", http.StatusInternalServerError)
 		return
+	} else {
+		log.Printf("SUCCESS: Group invitation notification created")
+		
+		// Send real-time notification
+		if gh.h != nil {
+			log.Printf("DEBUG: Sending real-time group invitation notification to user %s", invitation.InviteeID)
+			gh.h.SendNotification(invitation.InviteeID, notification, map[string]interface{}{
+				"group_id": invitation.EntityID,
+				"inviter_id": invitation.InviterID,
+			})
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

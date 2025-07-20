@@ -14,12 +14,15 @@ type NotificationPayload struct {
 
 // SendNotification sends a real-time notification to a specific user
 func (h *Hub) SendNotification(userID string, notification models.Notification, additionalData map[string]interface{}) {
+    log.Printf("DEBUG: SendNotification called - UserID: %s, Type: %s, NotificationID: %s", 
+        userID, notification.Type, notification.ID)
+    
     h.mu.RLock()
     client, exists := h.Clients[userID]
     h.mu.RUnlock()
 
     if !exists {
-        log.Printf("SendNotification: User %s not connected, notification will be stored only", userID)
+        log.Printf("WARNING: SendNotification: User %s not connected, notification will be stored only", userID)
         return
     }
 
@@ -29,14 +32,16 @@ func (h *Hub) SendNotification(userID string, notification models.Notification, 
         Data:         additionalData,
     }
 
+    log.Printf("DEBUG: Sending notification payload to user %s: %+v", userID, payload)
+
     select {
     case client.Send <- MessagePayload{
         Type: "notification",
         Data: payload,
     }:
-        log.Printf("SendNotification: Real-time notification sent to user %s", userID)
+        log.Printf("SUCCESS: Real-time notification sent to user %s", userID)
     default:
-        log.Printf("SendNotification: Client %s send buffer full for notification", userID)
+        log.Printf("ERROR: Client %s send buffer full for notification", userID)
     }
 }
 

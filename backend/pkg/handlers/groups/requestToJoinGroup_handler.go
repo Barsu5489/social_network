@@ -2,7 +2,7 @@ package groups
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"social-nework/pkg/models"
 	"time"
@@ -78,10 +78,24 @@ func (gh *GroupHandler) RequestToJoinGroup(w http.ResponseWriter, r *http.Reques
 		IsRead:      false,
 		CreatedAt:   time.Now(),
 	}
+
+	log.Printf("DEBUG: Creating group join request notification - CreatorID: %s, RequesterID: %s, GroupID: %s",
+		creatorID, request.UserID, groupID)
+
 	_, err = gh.NotificationModel.Insert(r.Context(), notification)
 	if err != nil {
-		// Log the error but don't fail the join request
-		fmt.Printf("Failed to create notification for group join request: %v\n", err)
+		log.Printf("ERROR: Failed to create group join request notification: %v", err)
+	} else {
+		log.Printf("SUCCESS: Group join request notification created for creator %s", creatorID)
+
+		// Send real-time notification
+		if gh.h != nil {
+			log.Printf("DEBUG: Sending real-time group join request notification to creator %s", creatorID)
+			gh.h.SendNotification(creatorID, notification, map[string]interface{}{
+				"group_id":     groupID,
+				"requester_id": request.UserID,
+			})
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -69,16 +69,23 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:   time.Now(),
 	}
 
+	log.Printf("DEBUG: Creating follow notification - ID: %s, UserID: %s, Type: %s, ReferenceID: %s", 
+		notification.ID, notification.UserID, notification.Type, notification.ReferenceID)
+
 	_, err = h.NotificationModel.Insert(ctx, notification)
 	if err != nil {
-		log.Printf("Failed to create notification: %v", err)
+		log.Printf("ERROR: Failed to create follow notification: %v", err)
 	} else {
+		log.Printf("SUCCESS: Follow notification created and saved to DB")
 		// Send real-time notification if hub is available
 		if h.Hub != nil {
+			log.Printf("DEBUG: Sending real-time follow notification to user %s", followedID)
 			h.Hub.SendNotification(followedID, notification, map[string]interface{}{
 				"follower_id": followerID,
 				"action":      "followed",
 			})
+		} else {
+			log.Printf("WARNING: Hub not available for real-time notification")
 		}
 	}
 
