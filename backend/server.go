@@ -138,8 +138,8 @@ func main() {
 	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("POST")
 	router.HandleFunc("/api/posts/{post_id}/like", auth.RequireAuth(handlers.LikePost(db, notificationModel))).Methods("DELETE")
 
-	// Comment routes
-	router.HandleFunc("/comments/{postId}", handlers.GetPostComments(db)).Methods("GET")
+	// Comment routes - both need authentication
+	router.HandleFunc("/comments/{postId}", auth.RequireAuth(handlers.GetPostComments(db))).Methods("GET")
 	router.HandleFunc("/comment/{postId}", auth.RequireAuth(handlers.CreateComment(db, notificationModel, hub))).Methods("POST")
 
 	// Add debugging middleware for comment routes
