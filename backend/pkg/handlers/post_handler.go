@@ -33,7 +33,7 @@ func NewPost(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		_, err := models.CreatePost(db, ctx, userID, req.Content, req.Privacy, req.GroupID, req.AllowedUserIDs)
+		_, err := models.CreatePost(db, ctx, userID, req.Content, req.Privacy, req.GroupID, req.AllowedUserIDs, req.ImageURL)
 		if err != nil {
 			fmt.Print(err)
 			http.Error(w, "Error creating Post", http.StatusBadRequest)
