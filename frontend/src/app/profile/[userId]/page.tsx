@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { UserPlus, UserCheck, UserX, Lock, Edit, MessageCircle } from 'lucide-react';
 import { EditProfileDialog } from '@/components/edit-profile-dialog';
 import StartChatButton from '@/components/StartChatButton';
-
+import { UserActivity } from '@/components/user-activity';
 
 interface ProfileData {
     user: {
@@ -198,6 +198,7 @@ export default function ProfilePage() {
             <Tabs defaultValue="posts" className="mt-6">
                 <TabsList>
                     <TabsTrigger value="posts">Posts</TabsTrigger>
+                    <TabsTrigger value="activity">Activity</TabsTrigger>
                     <TabsTrigger value="followers">Followers</TabsTrigger>
                     <TabsTrigger value="following">Following</TabsTrigger>
                 </TabsList>
@@ -207,6 +208,9 @@ export default function ProfilePage() {
                     ) : (
                         <Card className="bg-card/50"><CardContent className="p-8 text-center text-muted-foreground">No posts yet.</CardContent></Card>
                     )}
+                </TabsContent>
+                <TabsContent value="activity" className="mt-4">
+                    <UserActivity userId={user.id} isOwnProfile={isOwnProfile} />
                 </TabsContent>
                 <TabsContent value="followers" className="mt-4">
                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
