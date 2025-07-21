@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string, allowedUserIDs []string) (string, error) {
-	if content == "" {
-		return "", errors.New("content cannot be empty")
+func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string, allowedUserIDs []string, imageURL *string) (string, error) {
+	if content == "" && imageURL == nil {
+		return "", errors.New("content or image is required")
 	}
 
 	// Validate privacy setting
@@ -42,34 +42,34 @@ func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string
 	now := time.Now().Unix()
 
 	// --- 1. Insert into posts table ---
-	postStm := `INSERT INTO posts (id, user_id, group_id, content, privacy, created_at, updated_at)
-                VALUES(?,?,?,?,?,?,?)`
-	_, err = tx.ExecContext(ctx, postStm, postID, userID, groupID, content, privacy, now, now)
-    if err != nil {
-        return "", fmt.Errorf("failed to insert post: %w", err)
-    }
+	postStm := `INSERT INTO posts (id, user_id, group_id, content, privacy, image_url, created_at, updated_at)
+                VALUES(?,?,?,?,?,?,?,?)`
+	_, err = tx.ExecContext(ctx, postStm, postID, userID, groupID, content, privacy, imageURL, now, now)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert post: %w", err)
+	}
 	
 	// --- 2. If the post is private, insert into post_allowed_users ---
-    if privacy == "private" {
-        allowedUsersStm, err := tx.PrepareContext(ctx, `INSERT INTO post_allowed_users (post_id, user_id) VALUES (?, ?)`)
-        if err != nil {
-            return "", fmt.Errorf("failed to prepare statement for allowed users: %w", err)
-        }
-        defer allowedUsersStm.Close()
+	if privacy == "private" {
+		allowedUsersStm, err := tx.PrepareContext(ctx, `INSERT INTO post_allowed_users (post_id, user_id) VALUES (?, ?)`)
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare statement for allowed users: %w", err)
+		}
+		defer allowedUsersStm.Close()
 
-        for _, allowedID := range allowedUserIDs {
-            // It's good practice to ensure the creator doesn't need to add themselves, 
-            // but for explicit control, we'll allow whatever is passed.
-            if _, err := allowedUsersStm.ExecContext(ctx, postID, allowedID); err != nil {
-                return "", fmt.Errorf("failed to insert allowed user %s: %w", allowedID, err)
-            }
-        }
-    }
+		for _, allowedID := range allowedUserIDs {
+			// It's good practice to ensure the creator doesn't need to add themselves, 
+			// but for explicit control, we'll allow whatever is passed.
+			if _, err := allowedUsersStm.ExecContext(ctx, postID, allowedID); err != nil {
+				return "", fmt.Errorf("failed to insert allowed user %s: %w", allowedID, err)
+			}
+		}
+	}
 
-    // --- Commit Transaction ---
-    if err := tx.Commit(); err != nil {
-        return "", fmt.Errorf("failed to commit transaction: %w", err)
-    }
+	// --- Commit Transaction ---
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
 	
 	return postID, nil
 }
