@@ -6,7 +6,7 @@ services:
       context: ./backend
     container_name: social-backend
     ports:
-      - "8080:8080"
+      - "8080:3000"  # Map host 8080 to container 3000
     environment:
       - GOMAXPROCS=1
       - GOMEMLIMIT=128MiB
