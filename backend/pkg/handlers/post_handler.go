@@ -28,12 +28,18 @@ func NewPost(db *sql.DB) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		var req models.Post
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var reqBody struct {
+			Content        string   `json:"content"`
+			Privacy        string   `json:"privacy"`
+			GroupID        *string  `json:"group_id"`
+			AllowedUserIDs []string `json:"allowed_user_ids"`
+			ImageURL       *string  `json:"image_url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		_, err := models.CreatePost(db, ctx, userID, req.Content, req.Privacy, req.GroupID, req.AllowedUserIDs, req.ImageURL)
+		_, err := models.CreatePost(db, ctx, userID, reqBody.Content, reqBody.Privacy, reqBody.GroupID, reqBody.AllowedUserIDs, reqBody.ImageURL)
 		if err != nil {
 			fmt.Print(err)
 			http.Error(w, "Error creating Post", http.StatusBadRequest)
