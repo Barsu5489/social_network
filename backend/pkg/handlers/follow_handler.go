@@ -278,3 +278,77 @@ func (h *FollowHandler) CheckFollowStatus(w http.ResponseWriter, r *http.Request
 		"isFollowedBy": isFollowedBy,
 	})
 }
+
+func (h *FollowHandler) AcceptFollowRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	followerID := vars["followerID"]
+	if followerID == "" {
+		http.Error(w, "Follower ID required", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Create the follow relationship
+	err := h.FollowModel.Follow(ctx, followerID, userID)
+	if err != nil {
+		log.Printf("Failed to create follow relationship: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Mark the notification as read/handled
+	_, err = h.DB.ExecContext(ctx, "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND reference_id = ? AND type = 'follow_request'", userID, followerID)
+	if err != nil {
+		log.Printf("Failed to mark notification as read: %v", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Follow request accepted"})
+}
+
+func (h *FollowHandler) DeclineFollowRequest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	followerID := vars["followerID"]
+	if followerID == "" {
+		http.Error(w, "Follower ID required", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Mark the notification as read/handled
+	_, err := h.DB.ExecContext(ctx, "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND reference_id = ? AND type = 'follow_request'", userID, followerID)
+	if err != nil {
+		log.Printf("Failed to mark notification as read: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Follow request declined"})
+}

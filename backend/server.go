@@ -125,6 +125,10 @@ func main() {
 	router.HandleFunc("/api/users/{userID}/unfollow", auth.RequireAuth(followHandler.Unfollow)).Methods("DELETE")
 	router.HandleFunc("/api/follow/check", auth.RequireAuth(followHandler.CheckFollowStatus)).Methods("GET")
 
+	// Follow request routes
+	router.HandleFunc("/api/follow-requests/{followerID}/accept", auth.RequireAuth(followHandler.AcceptFollowRequest)).Methods("POST")
+	router.HandleFunc("/api/follow-requests/{followerID}/decline", auth.RequireAuth(followHandler.DeclineFollowRequest)).Methods("POST")
+
 	// Notification routes
 	router.HandleFunc("/api/notifications", auth.RequireAuth(notificationHandler.GetNotifications)).Methods("GET")
 	router.HandleFunc("/api/notifications/mark-read", auth.RequireAuth(notificationHandler.MarkNotificationAsRead)).Methods("POST")
