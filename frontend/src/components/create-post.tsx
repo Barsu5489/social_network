@@ -33,6 +33,10 @@ export function CreatePost({ groupId }: { groupId?: string }) {
   const [content, setContent] = useState('');
   const [privacy, setPrivacy] = useState<Privacy>('public');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [allowedUsers, setAllowedUsers] = useState<string[]>([]);
+  const [showFollowerSelector, setShowFollowerSelector] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
@@ -93,6 +97,31 @@ export function CreatePost({ groupId }: { groupId?: string }) {
   }
 
   const CurrentPrivacyIcon = privacyOptions[privacy].icon;
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
+  const handlePrivacyChange = (newPrivacy: Privacy) => {
+    setPrivacy(newPrivacy);
+    if (newPrivacy === 'private') {
+      setShowFollowerSelector(true);
+    } else {
+      setShowFollowerSelector(false);
+      setAllowedUsers([]);
+    }
+  };
 
   return (
     <Card>
