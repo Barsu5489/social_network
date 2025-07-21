@@ -12,9 +12,9 @@ RUN npm run build
 
 FROM node:18-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV production
+ENV NODE_ENV=production
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+RUN mkdir -p ./public && (cp -r /app/public/* ./public/ 2>/dev/null || true)
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 EXPOSE 3000

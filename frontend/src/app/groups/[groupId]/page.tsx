@@ -1,11 +1,7 @@
 
-export async function generateStaticParams() {
-  return [];
-}
+'use client';
 
 export const dynamic = 'force-dynamic';
-
-'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -21,19 +17,15 @@ import Image from "next/image";
 import { getGroupCover } from "@/lib/avatars";
 import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { InviteUserDialog } from "@/components/invite-user-dialog";
 import { JoinGroupButton } from "@/components/join-group-button";
 
-// Placeholder for the requests tab content
 type GroupRequest = {
     id: string;
     user_name: string;
     members?: { id: string }[]; 
-    // add other fields if needed
 };
 
 function GroupRequestsTab({ groupId }: { groupId: string }) {
@@ -126,12 +118,11 @@ export default function SingleGroupPage() {
             setIsLoading(true);
             setError(null);
             try {
-                // Pass user_id query param to fetch posts
-                const fetchPosts = fetch(`${API_BASE_URL}/api/groups/${groupId}/posts?user_id=${user.id}`, { credentials: 'include', cache: 'no-store' }).then(res => res.ok ? res.json() : []);
+                const fetchPosts = fetch(`${API_BASE_URL}/api/groups/${groupId}/posts?user_id=${user.id}`, { credentials: 'include' }).then(res => res.ok ? res.json() : []);
                 
-                const fetchEvents = fetch(`${API_BASE_URL}/api/groups/${groupId}/events`, { credentials: 'include', cache: 'no-store' }).then(res => res.ok ? res.json() : []);
+                const fetchEvents = fetch(`${API_BASE_URL}/api/groups/${groupId}/events`, { credentials: 'include' }).then(res => res.ok ? res.json() : []);
                 
-                const fetchGroupDetails = fetch(`${API_BASE_URL}/api/groups`, { credentials: 'include', cache: 'no-store' }).then(async res => {
+                const fetchGroupDetails = fetch(`${API_BASE_URL}/api/groups`, { credentials: 'include' }).then(async res => {
                     if (!res.ok) return null;
                     const allGroups = await res.json();
                     return Array.isArray(allGroups) ? allGroups.find(g => g.id === groupId) : null;
@@ -207,11 +198,6 @@ export default function SingleGroupPage() {
 
     const { posts, events, groupDetails } = groupData;
     const cover = getGroupCover(groupId);
-    // If your Group type has a members array, use something like:
-    // const isMember = groupDetails.members?.some((member: { id: string }) => member.id === user?.id);
-
-    // If not, and only the creator is a member, keep the original logic:
-    // const isMember = user?.id === groupDetails.creator_id;
 
     return (
         <main className="flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
@@ -249,7 +235,6 @@ export default function SingleGroupPage() {
                 </div>
                 
                 <TabsContent value="posts">
-                    {/* Pass groupId to CreatePost component */}
                     <CreatePost groupId={groupId} />
                     <div className="mt-6 space-y-6">
                         {posts && posts.length > 0 ? (
