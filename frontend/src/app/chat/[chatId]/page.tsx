@@ -41,6 +41,15 @@ interface ChatDetails {
     participants: any[]; // Assuming an array of user objects
 }
 
+// Emoji list for picker
+const emojis = [
+    "😀", "😂", "😍", "😎", "😊",
+    "😉", "🥰", "😢", "😭", "😡",
+    "👍", "🙏", "🎉", "💯", "🔥",
+    "🥳", "🤔", "😴", "😇", "🤗",
+    "😜", "🤩", "😱", "😏", "😅"
+];
+
 function ChatView({ chatId }: { chatId: string }) {
     const { user } = useUser();
     const { toast } = useToast();
@@ -288,7 +297,7 @@ function ChatView({ chatId }: { chatId: string }) {
                                 </div>
                             </PopoverContent>
                         </Popover>
-                        <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isSending}>
+                        <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim() || isSending}>
                             {isSending ? 'Sending...' : 'Send'}
                         </Button>
                     </div>
