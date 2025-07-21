@@ -9,10 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Smile } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ChatLayout } from '@/components/chat/chat-layout';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 // Interfaces for data structures
 interface Message {
@@ -260,9 +265,33 @@ function ChatView({ chatId }: { chatId: string }) {
                             }
                         }}
                     />
-                    <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
-                        <Send className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                    <Smile className="h-5 w-5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2">
+                                <div className="grid grid-cols-5 gap-1">
+                                    {emojis.map((emoji) => (
+                                        <Button
+                                            key={emoji}
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setNewMessage(newMessage + emoji)}
+                                            className="text-xl"
+                                        >
+                                            {emoji}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isSending}>
+                            {isSending ? 'Sending...' : 'Send'}
+                        </Button>
+                    </div>
                 </form>
             </div>
         </div>
