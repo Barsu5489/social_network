@@ -84,10 +84,16 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 
 					// Send real-time notification
 					if gh.h != nil {
+						// Get creator info
+						var creatorNickname, creatorAvatar string
+						gh.db.QueryRow("SELECT nickname, avatar_url FROM users WHERE id = ?", event.CreatedBy).Scan(&creatorNickname, &creatorAvatar)
+						
 						gh.h.SendNotification(memberUserID, notification, map[string]interface{}{
-							"event_id":   event.ID,
-							"group_id":   groupID,
-							"creator_id": event.CreatedBy,
+							"event_id":       event.ID,
+							"group_id":       groupID,
+							"creator_id":     event.CreatedBy,
+							"actor_nickname": creatorNickname,
+							"actor_avatar":   creatorAvatar,
 						})
 					}
 				}

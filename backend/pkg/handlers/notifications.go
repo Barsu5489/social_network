@@ -31,7 +31,7 @@ func (h *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Re
     
     userIDStr, ok := userID.(string)
     if !ok {
-        log.Printf("ERROR: GetNotifications - Invalid user_id type")
+        log.Printf("ERROR: GetNotifications - Invalid user_id type: %T", userID)
         http.Error(w, "Invalid user ID", http.StatusBadRequest)
         return
     }
@@ -48,13 +48,21 @@ func (h *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Re
         return
     }
 
-    log.Printf("DEBUG: Retrieved %d notifications for user %s", len(notifications), userIDStr)
-    for i, notif := range notifications {
-        log.Printf("DEBUG: Notification %d - ID: %v, Type: %v", i+1, notif["id"], notif["type"])
+    // Return empty array instead of null if no notifications
+    if notifications == nil {
+        notifications = []map[string]interface{}{}
     }
 
+    log.Printf("DEBUG: Retrieved %d notifications for user %s", len(notifications), userIDStr)
+    
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(notifications)
+    if err := json.NewEncoder(w).Encode(notifications); err != nil {
+        log.Printf("ERROR: Failed to encode notifications response: %v", err)
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+    
+    log.Printf("SUCCESS: Notifications response sent for user %s", userIDStr)
 }
 
 // MarkNotificationAsRead marks a notification as read

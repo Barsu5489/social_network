@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ import Link from "next/link"
 import { API_BASE_URL } from '@/lib/config';
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { useWebSocket } from "@/contexts/websocket-context"
+import { useUser } from "@/contexts/user-context"
 
 type Notification = {
   id: string
@@ -42,12 +43,17 @@ const icons: { [key: string]: React.ElementType } = {
 }
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const { ws } = useWebSocket()
+  const { user } = useUser()
+  const { ws, isConnected } = useWebSocket()
+  const [notifications, setNotifications] = useState<Notification[] | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
-  console.log('DEBUG: NotificationBell - WebSocket connection status:', ws ? 'Connected' : 'Not connected')
-  console.log('DEBUG: NotificationBell - WebSocket readyState:', ws?.readyState)
+  // Debug WebSocket connection
+  useEffect(() => {
+    console.log('DEBUG: NotificationBell - WebSocket connection status:', isConnected ? 'Connected' : 'Not connected')
+    console.log('DEBUG: NotificationBell - WebSocket readyState:', ws?.readyState)
+  }, [ws, isConnected])
 
   const markAsRead = async (id: string) => {
     console.log('DEBUG: Marking notification as read:', id)
@@ -91,46 +97,71 @@ export function NotificationBell() {
     }
   }
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    if (!user?.id) {
+      console.log('DEBUG: Cannot fetch notifications - no user')
+      return
+    }
+
+    if (isLoading) {
+      console.log('DEBUG: Already loading notifications, skipping')
+      return
+    }
+
+    setIsLoading(true)
     console.log('DEBUG: Fetching notifications...')
+    
     try {
-      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-        credentials: 'include'
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+        credentials: 'include',
       })
-      
-      if (!res.ok) {
-        console.error('ERROR: Notifications fetch failed with status:', res.status);
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('DEBUG: Notifications fetched successfully:', data)
+        setNotifications(Array.isArray(data) ? data : [])
+      } else {
+        console.error('ERROR: Notifications fetch failed with status:', response.status)
+        const errorText = await response.text()
+        console.error('ERROR: Server response:', errorText)
         throw new Error('Failed to fetch notifications')
       }
-      const data = await res.json()
-      console.log('DEBUG: Notifications data received:', data)
-      
-      // Handle the array response directly
-      const notificationsArray = Array.isArray(data) ? data : []
-      
-      console.log('DEBUG: Number of notifications:', notificationsArray.length)
-      setNotifications(notificationsArray)
-    } catch (err) {
-      console.error('ERROR: Error fetching notifications:', err)
+    } catch (error) {
+      console.error('ERROR: Error fetching notifications:', error)
       setNotifications([])
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
-  }
+  }, [user?.id])
 
-  // Listen for WebSocket notifications
+  // Fetch notifications when component mounts or user changes
   useEffect(() => {
-    if (!ws) return
+    if (user?.id) {
+      fetchNotifications()
+    } else {
+      setNotifications(null)
+    }
+  }, [user?.id, fetchNotifications])
+
+  // Listen for WebSocket notifications only when connected
+  useEffect(() => {
+    if (!ws || !isConnected || ws.readyState !== WebSocket.OPEN) {
+      console.log('DEBUG: WebSocket not ready for notifications, state:', ws?.readyState, 'connected:', isConnected)
+      return
+    }
 
     const handleMessage = (event: MessageEvent) => {
+      console.log('DEBUG: Raw WebSocket message received:', event.data)
+      
       try {
         const messageData = JSON.parse(event.data)
-        console.log('DEBUG: WebSocket notification received:', messageData)
+        console.log('DEBUG: Parsed WebSocket message:', messageData)
         
         if (messageData.type === 'notification') {
           console.log('DEBUG: Processing real-time notification')
-          // The notification data is nested in messageData.data
           const notificationPayload = messageData.data
+          console.log('DEBUG: Notification payload:', notificationPayload)
+          
           if (notificationPayload && notificationPayload.notification) {
             const newNotification = {
               id: notificationPayload.notification.id,
@@ -144,8 +175,22 @@ export function NotificationBell() {
               actor_avatar: notificationPayload.data?.actor_avatar
             }
             
-            console.log('DEBUG: Adding new notification:', newNotification)
-            setNotifications(prev => [newNotification, ...(prev || [])])
+            console.log('DEBUG: Formatted notification for state:', newNotification)
+            
+            setNotifications(prev => {
+              if (!prev) return [newNotification]
+              
+              // Prevent duplicate notifications
+              const existing = prev.find(n => n.id === newNotification.id)
+              if (existing) {
+                console.log('DEBUG: Notification already exists, skipping:', newNotification.id)
+                return prev
+              }
+              
+              const updated = [newNotification, ...prev]
+              console.log('DEBUG: Updated notifications:', updated)
+              return updated
+            })
           }
         }
       } catch (error) {
@@ -153,16 +198,14 @@ export function NotificationBell() {
       }
     }
 
+    console.log('DEBUG: Adding WebSocket message listener')
     ws.addEventListener('message', handleMessage)
 
     return () => {
+      console.log('DEBUG: Removing WebSocket message listener')
       ws.removeEventListener('message', handleMessage)
     }
-  }, [ws])
-
-  useEffect(() => {
-    fetchNotifications()
-  }, [])
+  }, [ws, isConnected])
 
   const hasUnread = notifications && notifications.length > 0
 
@@ -197,6 +240,10 @@ export function NotificationBell() {
         return 'requested to join your group'
       case 'event_created':
         return 'created a new event in your group'
+      case 'group_join_response':
+        return 'responded to your group join request'
+      case 'group_invitation_response':
+        return 'responded to your group invitation'
       default:
         return 'sent you a notification'
     }
@@ -238,7 +285,7 @@ export function NotificationBell() {
       <DropdownMenuContent className="w-80" align="end">
         <DropdownMenuLabel>Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {loading ? (
+        {isLoading ? (
           <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
         ) : notifications && notifications.length > 0 ? (
           notifications.map((notif) => {

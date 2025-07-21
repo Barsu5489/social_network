@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+
 )
 
 // The Notification struct is defined in models.go, so it should not be redefined here.
@@ -14,42 +15,51 @@ type NotificationModel struct {
 	DB *sql.DB
 }
 
-func (m *NotificationModel) Insert(ctx context.Context, notification Notification) (*Notification, error) {
+func (nm *NotificationModel) Insert(ctx context.Context, notification Notification) (*Notification, error) {
 	query := `
-		INSERT INTO notifications (id, user_id, type, reference_id, is_read, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO notifications (id, user_id, type, reference_id, actor_id, is_read, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := m.DB.ExecContext(ctx, query,
+	_, err := nm.DB.ExecContext(ctx, query,
 		notification.ID,
 		notification.UserID,
 		notification.Type,
 		notification.ReferenceID,
+		notification.ActorID,
 		notification.IsRead,
 		notification.CreatedAt.Unix(),
 	)
 
 	if err != nil {
+		log.Printf("ERROR: Failed to insert notification: %v", err)
 		return nil, err
 	}
 
+	log.Printf("SUCCESS: Notification inserted with ID: %s", notification.ID)
 	return &notification, nil
 }
 
 func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]map[string]interface{}, error) {
+	log.Printf("DEBUG: GetByUserID called for user: %s", userID)
+	
 	query := `
 		SELECT 
-			notifications.id,
-			notifications.user_id,
-			notifications.type,
-			notifications.reference_id,
-			notifications.is_read,
-			notifications.created_at
-		FROM notifications 
-		WHERE notifications.user_id = ? 
-		AND notifications.deleted_at IS NULL 
-		AND notifications.is_read = 0
-		ORDER BY notifications.created_at DESC
+			n.id,
+			n.user_id,
+			n.type,
+			n.reference_id,
+			COALESCE(n.actor_id, '') as actor_id,
+			n.is_read,
+			n.created_at,
+			COALESCE(u.nickname, '') as actor_nickname,
+			COALESCE(u.avatar_url, '') as actor_avatar
+		FROM notifications n
+		LEFT JOIN users u ON n.actor_id = u.id
+		WHERE n.user_id = ? 
+		AND n.deleted_at IS NULL 
+		AND n.is_read = 0
+		ORDER BY n.created_at DESC
 		LIMIT 50
 	`
 
@@ -63,20 +73,20 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 	var notifications []map[string]interface{}
 
 	for rows.Next() {
-		var id, notifUserID, notifType, referenceID string
+		var id, notifUserID, notifType, referenceID, actorID string
+		var actorNickname, actorAvatar string
 		var isRead bool
 		var createdAt int64
 		
-		err := rows.Scan(&id, &notifUserID, &notifType, &referenceID, &isRead, &createdAt)
+		err := rows.Scan(&id, &notifUserID, &notifType, &referenceID, &actorID, &isRead, &createdAt, &actorNickname, &actorAvatar)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan notification: %v", err)
 			continue
 		}
 		
-		message, link := nm.formatNotificationMessage(notifType, referenceID)
+		log.Printf("DEBUG: Processing notification - ID: %s, Type: %s, ActorID: %s", id, notifType, actorID)
 		
-		// Get actor info based on notification type
-		actorNickname, actorAvatar := nm.getActorInfo(ctx, notifType, referenceID)
+		message, link := nm.formatNotificationMessage(notifType, referenceID)
 		
 		notification := map[string]interface{}{
 			"id":           id,
@@ -90,14 +100,17 @@ func (nm *NotificationModel) GetByUserID(ctx context.Context, userID string) ([]
 		
 		if actorNickname != "" {
 			notification["actor_nickname"] = actorNickname
+			log.Printf("DEBUG: Added actor_nickname: %s", actorNickname)
 		}
 		if actorAvatar != "" {
 			notification["actor_avatar"] = actorAvatar
+			log.Printf("DEBUG: Added actor_avatar: %s", actorAvatar)
 		}
 		
 		notifications = append(notifications, notification)
 	}
 
+	log.Printf("DEBUG: Returning %d notifications for user %s", len(notifications), userID)
 	return notifications, nil
 }
 

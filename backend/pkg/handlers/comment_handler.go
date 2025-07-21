@@ -190,10 +190,17 @@ func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub 
 					// Send real-time notification
 					if hub != nil {
 						log.Printf("DEBUG: Sending real-time comment notification to user: %s", postOwnerID)
+						
+						// Get commenter info
+						var commenterNickname, commenterAvatar string
+						db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&commenterNickname, &commenterAvatar)
+						
 						hub.SendNotification(postOwnerID, notification, map[string]interface{}{
-							"post_id":      postID,
-							"comment_id":   comment.ID,
-							"commenter_id": userID,
+							"post_id":        postID,
+							"comment_id":     comment.ID,
+							"commenter_id":   userID,
+							"actor_nickname": commenterNickname,
+							"actor_avatar":   commenterAvatar,
 						})
 					}
 				}

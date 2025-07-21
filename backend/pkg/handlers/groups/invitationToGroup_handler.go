@@ -89,9 +89,16 @@ func (gh *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 		// Send real-time notification
 		if gh.h != nil {
 			log.Printf("DEBUG: Sending real-time group invitation notification to user %s", invitation.InviteeID)
+			
+			// Get inviter info
+			var inviterNickname, inviterAvatar string
+			gh.db.QueryRow("SELECT nickname, avatar_url FROM users WHERE id = ?", invitation.InviterID).Scan(&inviterNickname, &inviterAvatar)
+			
 			gh.h.SendNotification(invitation.InviteeID, notification, map[string]interface{}{
-				"group_id": invitation.EntityID,
-				"inviter_id": invitation.InviterID,
+				"group_id":       invitation.EntityID,
+				"inviter_id":     invitation.InviterID,
+				"actor_nickname": inviterNickname,
+				"actor_avatar":   inviterAvatar,
 			})
 		}
 	}

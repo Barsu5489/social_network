@@ -76,9 +76,15 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("SUCCESS: Follow request notification created")
 			if h.Hub != nil {
+				// Get follower info for notification
+				var followerNickname, followerAvatar string
+				h.DB.QueryRow("SELECT nickname, avatar_url FROM users WHERE id = ?", followerID).Scan(&followerNickname, &followerAvatar)
+				
 				h.Hub.SendNotification(followedID, notification, map[string]interface{}{
-					"follower_id": followerID,
-					"action":      "follow_request",
+					"follower_id":    followerID,
+					"action":         "follow_request",
+					"actor_nickname": followerNickname,
+					"actor_avatar":   followerAvatar,
 				})
 			}
 		}
@@ -124,9 +130,16 @@ func (h *FollowHandler) Follow(w http.ResponseWriter, r *http.Request) {
 		// Send real-time notification if hub is available
 		if h.Hub != nil {
 			log.Printf("DEBUG: Sending real-time follow notification to user %s", followedID)
+			
+			// Get follower info for notification
+			var followerNickname, followerAvatar string
+			h.DB.QueryRow("SELECT nickname, avatar_url FROM users WHERE id = ?", followerID).Scan(&followerNickname, &followerAvatar)
+			
 			h.Hub.SendNotification(followedID, notification, map[string]interface{}{
-				"follower_id": followerID,
-				"action":      "followed",
+				"follower_id":    followerID,
+				"action":         "followed",
+				"actor_nickname": followerNickname,
+				"actor_avatar":   followerAvatar,
 			})
 		} else {
 			log.Printf("WARNING: Hub not available for real-time notification")
