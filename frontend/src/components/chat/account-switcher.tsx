@@ -45,11 +45,11 @@ export function AccountSwitcher({ isCollapsed, user, isLoading }: AccountSwitche
           {user && (
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                {user.first_name[0]}{user.last_name[0]}
+                {user.first_name?.[0] || '?'}{user.last_name?.[0] || '?'}
               </div>
               {!isCollapsed && (
                 <span className="ml-2">
-                  {user.first_name} {user.last_name}
+                  {user.first_name || 'Unknown'} {user.last_name || 'User'}
                 </span>
               )}
             </div>
@@ -61,10 +61,10 @@ export function AccountSwitcher({ isCollapsed, user, isLoading }: AccountSwitche
           <SelectItem value={user.id}>
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
-                {user.first_name[0]}{user.last_name[0]}
+                {user.first_name?.[0] || '?'}{user.last_name?.[0] || '?'}
               </div>
               <div className="flex flex-col">
-                <span>{user.first_name} {user.last_name}</span>
+                <span>{user.first_name || 'Unknown'} {user.last_name || 'User'}</span>
                 <span className="text-xs text-muted-foreground">{user.email}</span>
               </div>
             </div>
