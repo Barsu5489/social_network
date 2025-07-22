@@ -17,5 +17,5 @@ COPY --from=builder /app/.next ./.next
 RUN mkdir -p ./public && (cp -r /app/public/* ./public/ 2>/dev/null || true)
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 5173
+CMD ["npm", "start", "--", "-p", "5173"]
