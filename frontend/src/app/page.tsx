@@ -43,7 +43,10 @@ const signUpSchema = z.object({
   isPrivate: z.boolean().default(false),
   nickname: z.string().optional(),
   aboutMe: z.string().max(200, { message: "About me must be 200 characters or less." }).optional(),
-  avatarFile: z.instanceof(File).optional(),
+  avatarFile: z.any().optional().refine(
+    (file) => !file || (typeof File !== 'undefined' && file instanceof File),
+    { message: "Invalid file type" }
+  ),
 });
 
 const signInSchema = z.object({

@@ -7,9 +7,10 @@ Dockerfile
 .DS_Store
 .env*
 node_modules
-dist
-build
-*.test
-coverage.out
-.vscode
-.idea
+.next
+out
+coverage
+.vercel
+*.tsbuildinfo
+.genkit
+firebase-debug.log

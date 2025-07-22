@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -82,8 +84,19 @@ func registerGroupRoutes(router *mux.Router, handler *groups.GroupHandler) {
 }
 
 func main() {
+	// Get database path from environment or use default
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "social_network.db"
+	} else {
+		// Extract just the filename if full path is provided
+		dbPath = filepath.Base(dbPath)
+	}
+	
+	log.Printf("DB path: %s", dbPath)
+	
 	// Initialize SQLite database
-	db, err := sqlite.NewDB("social_network.db")
+	db, err := sqlite.NewDB(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -166,7 +179,7 @@ func main() {
 
 	// Enable CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000", "http://localhost:8080"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
