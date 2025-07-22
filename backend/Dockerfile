@@ -11,6 +11,8 @@ RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o backend-server ./server.go
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata sqlite
 WORKDIR /root/
+RUN mkdir -p /root/pkg/db/sqlite
 COPY --from=builder /app/backend-server .
+COPY --from=builder /app/pkg/db/migrations ./pkg/db/migrations
 EXPOSE 3000
 CMD ["./backend-server"]

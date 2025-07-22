@@ -88,13 +88,9 @@ func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "social_network.db"
-	}
-	
-	// Ensure the directory exists
-	if dir := filepath.Dir(dbPath); dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Fatalf("Failed to create database directory: %v", err)
-		}
+	} else {
+		// Extract just the filename if full path is provided
+		dbPath = filepath.Base(dbPath)
 	}
 	
 	log.Printf("DB path: %s", dbPath)
