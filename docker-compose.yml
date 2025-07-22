@@ -5,6 +5,7 @@ services:
     container_name: social-backend
     ports:
       - "8080:3000"
+      - "3000:3000"
     volumes:
       - backend-data:/app/pkg/db/sqlite
     environment:
