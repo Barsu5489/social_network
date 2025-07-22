@@ -21,21 +21,17 @@ export default function HomeLayout({
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return <PageLoader />;
   }
 
-  if (user) {
-    return (
-      <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-        <Sidebar />
-        <div className="flex flex-col bg-background/80 backdrop-blur-sm border-r border-l">
-          <Header />
-          {children}
-        </div>
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        {children}
       </div>
-    );
-  }
-
-  return <PageLoader />;
+    </div>
+  );
 }

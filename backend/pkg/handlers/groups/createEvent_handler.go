@@ -2,7 +2,7 @@ package groups
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -60,9 +60,11 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	rows, err := gh.db.Query(membersQuery, groupID, event.CreatedBy)
 	if err == nil {
 		defer rows.Close()
+		memberCount := 0
 		for rows.Next() {
 			var memberUserID string
 			if rows.Scan(&memberUserID) == nil {
+				memberCount++
 				notification := models.Notification{
 					UserID:      memberUserID,
 					Type:        "event_created",
@@ -70,13 +72,36 @@ func (gh *GroupHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 					IsRead:      false,
 					CreatedAt:   time.Now(),
 				}
+
+				log.Printf("DEBUG: Creating event notification for member %s - EventID: %s, GroupID: %s",
+					memberUserID, event.ID, groupID)
+
 				_, err = gh.NotificationModel.Insert(r.Context(), notification)
 				if err != nil {
-					// Log the error but don't fail the event creation
-					fmt.Printf("Failed to create notification for user %s: %v\n", memberUserID, err)
+					log.Printf("ERROR: Failed to create event notification for user %s: %v", memberUserID, err)
+				} else {
+					log.Printf("SUCCESS: Event notification created for member %s", memberUserID)
+
+					// Send real-time notification
+					if gh.h != nil {
+						// Get creator info
+						var creatorNickname, creatorAvatar string
+						gh.db.QueryRow("SELECT nickname, avatar_url FROM users WHERE id = ?", event.CreatedBy).Scan(&creatorNickname, &creatorAvatar)
+						
+						gh.h.SendNotification(memberUserID, notification, map[string]interface{}{
+							"event_id":       event.ID,
+							"group_id":       groupID,
+							"creator_id":     event.CreatedBy,
+							"actor_nickname": creatorNickname,
+							"actor_avatar":   creatorAvatar,
+						})
+					}
 				}
 			}
 		}
+		log.Printf("DEBUG: Event notifications sent to %d group members", memberCount)
+	} else {
+		log.Printf("ERROR: Failed to get group members for event notification: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

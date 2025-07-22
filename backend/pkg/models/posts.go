@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string, allowedUserIDs []string) (string, error) {
-	if content == "" {
-		return "", errors.New("content cannot be empty")
+func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string, groupID *string, allowedUserIDs []string, imageURL *string) (string, error) {
+	if content == "" && imageURL == nil {
+		return "", errors.New("content or image is required")
 	}
 
 	// Validate privacy setting
@@ -42,34 +42,34 @@ func CreatePost(db *sql.DB, ctx context.Context, userID, content, privacy string
 	now := time.Now().Unix()
 
 	// --- 1. Insert into posts table ---
-	postStm := `INSERT INTO posts (id, user_id, group_id, content, privacy, created_at, updated_at)
-                VALUES(?,?,?,?,?,?,?)`
-	_, err = tx.ExecContext(ctx, postStm, postID, userID, groupID, content, privacy, now, now)
-    if err != nil {
-        return "", fmt.Errorf("failed to insert post: %w", err)
-    }
+	postStm := `INSERT INTO posts (id, user_id, group_id, content, privacy, image_url, created_at, updated_at)
+                VALUES(?,?,?,?,?,?,?,?)`
+	_, err = tx.ExecContext(ctx, postStm, postID, userID, groupID, content, privacy, imageURL, now, now)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert post: %w", err)
+	}
 	
 	// --- 2. If the post is private, insert into post_allowed_users ---
-    if privacy == "private" {
-        allowedUsersStm, err := tx.PrepareContext(ctx, `INSERT INTO post_allowed_users (post_id, user_id) VALUES (?, ?)`)
-        if err != nil {
-            return "", fmt.Errorf("failed to prepare statement for allowed users: %w", err)
-        }
-        defer allowedUsersStm.Close()
+	if privacy == "private" {
+		allowedUsersStm, err := tx.PrepareContext(ctx, `INSERT INTO post_allowed_users (post_id, user_id) VALUES (?, ?)`)
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare statement for allowed users: %w", err)
+		}
+		defer allowedUsersStm.Close()
 
-        for _, allowedID := range allowedUserIDs {
-            // It's good practice to ensure the creator doesn't need to add themselves, 
-            // but for explicit control, we'll allow whatever is passed.
-            if _, err := allowedUsersStm.ExecContext(ctx, postID, allowedID); err != nil {
-                return "", fmt.Errorf("failed to insert allowed user %s: %w", allowedID, err)
-            }
-        }
-    }
+		for _, allowedID := range allowedUserIDs {
+			// It's good practice to ensure the creator doesn't need to add themselves, 
+			// but for explicit control, we'll allow whatever is passed.
+			if _, err := allowedUsersStm.ExecContext(ctx, postID, allowedID); err != nil {
+				return "", fmt.Errorf("failed to insert allowed user %s: %w", allowedID, err)
+			}
+		}
+	}
 
-    // --- Commit Transaction ---
-    if err := tx.Commit(); err != nil {
-        return "", fmt.Errorf("failed to commit transaction: %w", err)
-    }
+	// --- Commit Transaction ---
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
 	
 	return postID, nil
 }
@@ -160,59 +160,21 @@ func GetAllPosts(db *sql.DB, userID string) ([]Post, error) {
         ORDER BY p.created_at DESC
     `
 
-	fmt.Printf("Executing query:\n%s\nWith userID: %s\n", query, userID)
-
 	rows, err := db.Query(query, userID)
 	if err != nil {
-		fmt.Printf("Query error: %v\n", err)
 		return nil, fmt.Errorf("database query error: %v", err)
 	}
 	defer rows.Close()
 
 	var posts []Post
 	for rows.Next() {
-		var p Post
-		var groupID sql.NullString
-		var deletedAt sql.NullInt64
-
-		err := rows.Scan(
-			&p.ID,
-			&p.UserID,
-			&groupID,
-			&p.Content,
-			&p.Privacy,
-			&p.CreatedAt,
-			&p.UpdatedAt,
-			&deletedAt,
-			&p.LikesCount,
-			&p.UserLiked,
-		)
+		var post Post
+		err := rows.Scan(&post.ID, &post.UserID, &post.GroupID, &post.Content, &post.Privacy, &post.CreatedAt, &post.UpdatedAt, &post.DeletedAt, &post.LikesCount, &post.UserLiked)
 		if err != nil {
-			fmt.Printf("Row scan error: %v\n", err)
-			return nil, fmt.Errorf("row scan error: %v", err)
+			return nil, fmt.Errorf("error scanning post: %v", err)
 		}
-
-		// Handle nullable fields
-		if groupID.Valid {
-			p.GroupID = &groupID.String
-		} else {
-			p.GroupID = nil
-		}
-
-		if deletedAt.Valid {
-			p.DeletedAt = &deletedAt.Int64
-		} else {
-			p.DeletedAt = nil
-		}
-
-		posts = append(posts, p)
+		posts = append(posts, post)
 	}
 
-	if err = rows.Err(); err != nil {
-		fmt.Printf("Rows iteration error: %v\n", err)
-		return nil, fmt.Errorf("rows iteration error: %v", err)
-	}
-
-	fmt.Printf("Successfully retrieved %d posts\n", len(posts))
 	return posts, nil
 }

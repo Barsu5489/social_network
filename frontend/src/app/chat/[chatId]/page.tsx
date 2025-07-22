@@ -1,17 +1,23 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/user-context';
+import { useWebSocket } from '@/contexts/websocket-context';
 import { API_BASE_URL } from '@/lib/config';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SendHorizontal } from 'lucide-react';
+import { ArrowLeft, Send, Smile } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ChatLayout } from '@/components/chat/chat-layout';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 // Interfaces for data structures
 interface Message {
@@ -35,16 +41,25 @@ interface ChatDetails {
     participants: any[]; // Assuming an array of user objects
 }
 
+// Emoji list for picker
+const emojis = [
+    "😀", "😂", "😍", "😎", "😊",
+    "😉", "🥰", "😢", "😭", "😡",
+    "👍", "🙏", "🎉", "💯", "🔥",
+    "🥳", "🤔", "😴", "😇", "🤗",
+    "😜", "🤩", "😱", "😏", "😅"
+];
+
 function ChatView({ chatId }: { chatId: string }) {
     const { user } = useUser();
     const { toast } = useToast();
     const [messages, setMessages] = useState<Message[]>([]);
-    const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
     const [newMessage, setNewMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
-    const ws = useRef<WebSocket | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
+    const { ws, sendMessage } = useWebSocket(); // Use global WebSocket
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,16 +79,25 @@ function ChatView({ chatId }: { chatId: string }) {
             try {
                 // Fetch messages
                 const messagesRes = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, { credentials: 'include' });
-                if (!messagesRes.ok) throw new Error('Failed to load messages.');
+                if (!messagesRes.ok) {
+                    console.error('Failed to load messages. Status:', messagesRes.status);
+                    throw new Error('Failed to load messages.');
+                }
                 const messagesData = await messagesRes.json();
+                console.log('Messages data:', messagesData);
                 setMessages(messagesData.messages || []);
 
                 // HACK: We don't have a dedicated /api/chats/{id} endpoint to get details.
                 // We'll get the details from the main chats list.
                 const chatsRes = await fetch(`${API_BASE_URL}/api/chats`, { credentials: 'include' });
-                if(!chatsRes.ok) throw new Error('Failed to load chat details.');
+                if(!chatsRes.ok) {
+                    console.error('Failed to load chat details. Status:', chatsRes.status);
+                    throw new Error('Failed to load chat details.');
+                }
                 const chatsData = await chatsRes.json();
+                console.log('Chat details data:', chatsData);
                 const currentChat = chatsData.chats.find((c: any) => c.id === chatId);
+                console.log('Current chat details:', currentChat);
                 setChatDetails(currentChat);
 
             } catch (error: any) {
@@ -88,74 +112,84 @@ function ChatView({ chatId }: { chatId: string }) {
 
     // Setup WebSocket
     useEffect(() => {
-        if (!chatId) return;
-        
-        // This derives ws:// or wss:// from http:// or https://
-        const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/ws';
-        ws.current = new WebSocket(wsUrl);
+        if (!ws || !chatId || !user?.id) return;
 
-        ws.current.onopen = () => {
-            console.log('WebSocket connected');
-        };
+        console.log('Setting up WebSocket message listener for chat:', chatId);
 
-        ws.current.onmessage = (event) => {
+        const handleMessage = (event: MessageEvent) => {
             try {
-                const messageData = JSON.parse(event.data);
-                if (messageData.type === 'new_message' && messageData.chat_id === chatId) {
-                    // This is a message for the current chat, add it to the state
-                    setMessages((prevMessages) => {
-                        // Avoid adding duplicate messages
-                        if (prevMessages.some(m => m.id === messageData.data.id)) {
-                            return prevMessages;
-                        }
-                        return [...prevMessages, messageData.data];
-                    });
+                const data = JSON.parse(event.data);
+                console.log('Chat WebSocket message received:', data);
+
+                if (data.type === 'new_message' && data.chat_id === chatId) {
+                    console.log('New message for this chat:', data.data);
+                    const newMessage: Message = {
+                        id: data.data.id,
+                        chat_id: data.data.chat_id,
+                        sender_id: data.data.sender_id,
+                        content: data.data.content,
+                        sent_at: data.data.sent_at,
+                        sender: data.data.sender
+                    };
+                    setMessages(prev => [...prev, newMessage]);
                 }
             } catch (error) {
-                console.error('Failed to parse WebSocket message:', error);
+                console.error('Error parsing WebSocket message:', error);
             }
         };
 
-        ws.current.onclose = () => {
-            console.log('WebSocket disconnected');
-        };
+        ws.addEventListener('message', handleMessage);
 
-        ws.current.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            toast({ variant: 'destructive', title: 'Chat Error', description: 'Connection to the chat server was lost.' });
-        };
-
-        // Cleanup on unmount
         return () => {
-            ws.current?.close();
+            ws.removeEventListener('message', handleMessage);
         };
-    }, [chatId, toast]);
+    }, [ws, chatId, user?.id]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !user) return;
-
+    const handleSendMessage = async (messageContent: string) => {
+        if (!user?.id || !chatId || !messageContent.trim() || isSending) return;
+        
         setIsSending(true);
+        
         try {
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
+            const url = `${API_BASE_URL}/api/chats/${chatId}/messages`;
+            
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: newMessage }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 credentials: 'include',
+                body: JSON.stringify({
+                    content: messageContent.trim(),
+                    type: 'text'
+                }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to send message.');
+                throw new Error(`Failed to send message: ${response.status}`);
             }
 
-            const sentMessage = await response.json();
-            // Optimistically add the message for the sender.
-            // Backend broadcasts to others.
-            setMessages((prev) => [...prev, sentMessage.message]);
-            setNewMessage('');
-
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+            const responseData = await response.json();
+            
+            if (responseData.success && responseData.message) {
+                // Message will be added via WebSocket, but add locally for immediate feedback
+                setMessages(prevMessages => {
+                    if (prevMessages.some(m => m.id === responseData.message.id)) {
+                        return prevMessages;
+                    }
+                    return [...prevMessages, responseData.message];
+                });
+                
+                // Clear the input after successful send
+                setNewMessage('');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            toast({ 
+                variant: 'destructive', 
+                title: 'Error', 
+                description: 'Failed to send message. Please try again.' 
+            });
         } finally {
             setIsSending(false);
         }
@@ -215,7 +249,15 @@ function ChatView({ chatId }: { chatId: string }) {
 
             {/* Message Input */}
             <div className="p-3 border-t">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (newMessage.trim()) {
+                            handleSendMessage(newMessage);
+                        }
+                    }}
+                    className="flex items-center gap-2"
+                >
                     <Input
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
@@ -223,10 +265,42 @@ function ChatView({ chatId }: { chatId: string }) {
                         disabled={isSending}
                         autoComplete="off"
                         className="bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-ring"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (newMessage.trim()) {
+                                    handleSendMessage(newMessage);
+                                }
+                            }
+                        }}
                     />
-                    <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
-                        <SendHorizontal className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                                    <Smile className="h-5 w-5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2">
+                                <div className="grid grid-cols-5 gap-1">
+                                    {emojis.map((emoji) => (
+                                        <Button
+                                            key={emoji}
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setNewMessage(newMessage + emoji)}
+                                            className="text-xl"
+                                        >
+                                            {emoji}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim() || isSending}>
+                            {isSending ? 'Sending...' : 'Send'}
+                        </Button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -237,6 +311,7 @@ function ChatView({ chatId }: { chatId: string }) {
 export default function SingleChatPage() {
     const params = useParams();
     const chatId = params.chatId as string;
+    const [isLoading, setIsLoading] = useState(false);
     
     // We can't access server-side cookies in a client component.
     // So we'll let the ChatLayout use its default.
@@ -250,3 +325,4 @@ export default function SingleChatPage() {
         </div>
     )
 }
+

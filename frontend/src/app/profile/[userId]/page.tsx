@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/user-context';
 import Link from 'next/link';
-import { UserPlus, UserCheck, UserX, Lock, Edit } from 'lucide-react';
+import { UserPlus, UserCheck, UserX, Lock, Edit, MessageCircle } from 'lucide-react';
 import { EditProfileDialog } from '@/components/edit-profile-dialog';
-
+import StartChatButton from '@/components/StartChatButton';
+import { UserActivity } from '@/components/user-activity';
 
 interface ProfileData {
     user: {
@@ -66,11 +67,14 @@ const FollowButton = ({ targetUserId, followers }: { targetUserId: string, follo
     const handleFollow = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/follow/${targetUserId}`, { method: 'POST', credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/api/users/${targetUserId}/follow`, { 
+                method: 'POST', 
+                credentials: 'include' 
+            });
             if (!response.ok) throw new Error('Failed to follow');
             setIsFollowing(true);
             toast({ title: 'Followed successfully!' });
-            router.refresh(); // Refresh to get updated follower count
+            router.refresh();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not follow user.' });
         } finally {
@@ -81,11 +85,14 @@ const FollowButton = ({ targetUserId, followers }: { targetUserId: string, follo
     const handleUnfollow = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/unfollow/${targetUserId}`, { method: 'DELETE', credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/api/users/${targetUserId}/unfollow`, { 
+                method: 'DELETE', 
+                credentials: 'include' 
+            });
             if (!response.ok) throw new Error('Failed to unfollow');
             setIsFollowing(false);
             toast({ title: 'Unfollowed successfully.' });
-            router.refresh(); // Refresh to get updated follower count
+            router.refresh();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not unfollow user.' });
         } finally {
@@ -172,7 +179,10 @@ export default function ProfilePage() {
                             {isOwnProfile ? (
                                 <EditProfileDialog profile={user} onProfileUpdate={fetchProfile} />
                             ) : (
-                                <FollowButton targetUserId={user.id} followers={followers} />
+                                <div className="flex gap-2">
+                                    <FollowButton targetUserId={user.id} followers={followers} />
+                                    <StartChatButton userId={user.id} />
+                                </div>
                             )}
                         </div>
                         <p className="text-muted-foreground">@{user.nickname || user.id}</p>
@@ -188,6 +198,7 @@ export default function ProfilePage() {
             <Tabs defaultValue="posts" className="mt-6">
                 <TabsList>
                     <TabsTrigger value="posts">Posts</TabsTrigger>
+                    <TabsTrigger value="activity">Activity</TabsTrigger>
                     <TabsTrigger value="followers">Followers</TabsTrigger>
                     <TabsTrigger value="following">Following</TabsTrigger>
                 </TabsList>
@@ -197,6 +208,9 @@ export default function ProfilePage() {
                     ) : (
                         <Card className="bg-card/50"><CardContent className="p-8 text-center text-muted-foreground">No posts yet.</CardContent></Card>
                     )}
+                </TabsContent>
+                <TabsContent value="activity" className="mt-4">
+                    <UserActivity userId={user.id} isOwnProfile={isOwnProfile} />
                 </TabsContent>
                 <TabsContent value="followers" className="mt-4">
                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

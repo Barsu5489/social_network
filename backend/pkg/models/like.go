@@ -5,12 +5,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, userID, likeableType, likeableID string) (*Like, error) {
+// NotificationSender interface to avoid import cycles
+type NotificationSender interface {
+	SendNotification(userID string, notification Notification, metadata map[string]interface{})
+}
+
+func CreateLike(db *sql.DB, ctx context.Context, notificationModel *NotificationModel, hub NotificationSender, userID, likeableType, likeableID string) (*Like, error) {
 	if likeableType != "post" && likeableType != "comment" {
 		return nil, errors.New("invalid likeable type")
 	}
@@ -65,19 +71,64 @@ func CreateLike(db *sql.DB, ctx context.Context, notificationModel *Notification
 		postOwnerStmt := `SELECT user_id FROM posts WHERE id = ?`
 		err = db.QueryRowContext(ctx, postOwnerStmt, likeableID).Scan(&postOwnerID)
 		if err == nil && postOwnerID != userID {
-			// Don't notify for self-likes
+			log.Printf("DEBUG: Creating like notification - PostOwner: %s, Liker: %s, PostID: %s", postOwnerID, userID, likeableID)
 			notification := Notification{
+				ID:          uuid.New().String(),
 				UserID:      postOwnerID,
 				Type:        "new_like",
-				ReferenceID: id,
+				ReferenceID: likeableID,
 				IsRead:      false,
 				CreatedAt:   time.Now(),
 			}
 			_, err = notificationModel.Insert(ctx, notification)
 			if err != nil {
-				// Log the error, but don't return it as the like was successful
-				// You might want to add more robust error handling here
-				fmt.Printf("Failed to create notification for like: %v\n", err)
+				log.Printf("ERROR: Failed to create notification for like: %v", err)
+			} else {
+				log.Printf("SUCCESS: Like notification created for post owner: %s", postOwnerID)
+
+				// Send real-time notification if hub is available
+				if hub != nil {
+					// Get liker info
+					var likerNickname, likerAvatar string
+					db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&likerNickname, &likerAvatar)
+
+					hub.SendNotification(postOwnerID, notification, map[string]interface{}{
+						"post_id":        likeableID,
+						"liker_id":       userID,
+						"actor_nickname": likerNickname,
+						"actor_avatar":   likerAvatar,
+					})
+				}
+			}
+		} else if err != nil {
+			log.Printf("ERROR: Failed to get post owner for like notification: %v", err)
+		} else {
+			log.Printf("DEBUG: Not creating like notification - self-like detected")
+		}
+	}
+
+	// Create notification for comment likes
+	if likeableType == "comment" {
+		// Get comment owner and post ID
+		var commentOwnerID, postID string
+		commentOwnerStmt := `SELECT user_id, post_id FROM comments WHERE id = ?`
+		err = db.QueryRowContext(ctx, commentOwnerStmt, likeableID).Scan(&commentOwnerID, &postID)
+		if err == nil && commentOwnerID != userID {
+			// Don't notify for self-likes
+			notification := Notification{
+				ID:          uuid.New().String(),
+				UserID:      commentOwnerID,
+				Type:        "new_like",
+				ReferenceID: postID,  // Use post ID for navigation
+				ActorID:     &userID, // Store who performed the action
+				IsRead:      false,
+				CreatedAt:   time.Now(),
+			}
+			_, err = notificationModel.Insert(ctx, notification)
+			if err != nil {
+				fmt.Printf("Failed to create notification for comment like: %v\n", err)
+			} else {
+				log.Printf("SUCCESS: Comment like notification created for comment owner: %s", commentOwnerID)
 			}
 		}
 	}

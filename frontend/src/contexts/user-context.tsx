@@ -1,6 +1,8 @@
 
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { API_BASE_URL } from '@/lib/config';
+import { useDebounce } from '@/hooks/use-debounce';
 
 // This interface matches the 'data' object in the successful login response
 // and the shape of the user object in the profile response.
@@ -18,46 +20,78 @@ interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  isVerifying: boolean;
+  verifyUser: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUserState] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isVerifying, setIsVerifying] = useState(false)
 
-  useEffect(() => {
-    // This effect runs only on the client-side
+  const verifyUser = useCallback(async () => {
+    if (isVerifying) {
+      console.log('DEBUG: Already verifying user, skipping...')
+      return
+    }
+    
+    setIsVerifying(true)
+    console.log('DEBUG: Starting user verification...')
+    
     try {
-      const storedUser = localStorage.getItem('connectu-user');
-      if (storedUser) {
-        setUserState(JSON.parse(storedUser));
+      const response = await fetch(`${API_BASE_URL}/api/profile`, {
+        credentials: 'include',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data?.user) {
+          console.log('User verified with server:', data.data.user.id)
+          setUser(data.data.user)
+          setIsAuthenticated(true)
+        } else {
+          console.log('No valid session, clearing user')
+          setUser(null)
+          setIsAuthenticated(false)
+        }
+      } else {
+        console.log('No valid session, clearing user')
+        setUser(null)
+        setIsAuthenticated(false)
       }
     } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
+      console.error('Error verifying user:', error)
+      setUser(null)
+      setIsAuthenticated(false)
     } finally {
-      setIsLoading(false);
+      setIsVerifying(false)
+      setIsLoading(false)
     }
-  }, []);
+  }, [isVerifying])
 
-  const setUser = useCallback((user: User | null) => {
-    setUserState(user);
-    if (user) {
-      localStorage.setItem('connectu-user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('connectu-user');
-    }
-  }, []);
-  
-  const value = useMemo(() => ({ user, setUser, isLoading }), [user, setUser, isLoading]);
+  const debouncedVerifyUser = useDebounce(verifyUser, 500)
 
+  useEffect(() => {
+    if (!isLoading || isVerifying) return
+    debouncedVerifyUser()
+  }, [debouncedVerifyUser, isLoading, isVerifying])
 
-  return (
-    <UserContext.Provider value={value}>
-      {children}
-    </UserContext.Provider>
-  );
-};
+  const value = {
+    user,
+    setUser,
+    isAuthenticated,
+    setIsAuthenticated,
+    isLoading,
+    isVerifying,
+    verifyUser,
+  }
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>
+}
 
 export const useUser = () => {
   const context = useContext(UserContext);

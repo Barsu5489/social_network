@@ -5,9 +5,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/uuid"
 	"social-nework/pkg/auth"
 	"social-nework/pkg/models"
+
+	"github.com/google/uuid"
 )
 
 type UserModel interface {
@@ -61,7 +62,7 @@ type LoginRequest struct {
 }
 
 // Login handles user authentication
-func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -81,31 +82,37 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Authenticate user
-	user, err := a.UserModel.Authenticate(req.Email, req.Password)
+	user, err := h.UserModel.Authenticate(req.Email, req.Password)
 	if err != nil {
 		log.Println("Authentication error:", err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	// Create user session
-	if err := auth.CreateSession(w, r, user.ID); err != nil {
-		log.Println("Session creation error:", err)
-		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+	log.Printf("DEBUG: Authentication successful for user: %s (ID: %s)", user.Email, user.ID)
+
+	// Store session
+	log.Printf("DEBUG: Attempting to create session for user ID: %s", user.ID)
+	err = auth.CreateSession(w, r, user.ID)
+	if err != nil {
+		log.Printf("ERROR: Failed to store session: %v", err)
+		log.Printf("DEBUG: User ID type: %T, value: %q", user.ID, user.ID)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Return success response
+	log.Printf("SUCCESS: Session created successfully for user: %s", user.Email)
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
 		"message": "Login successful",
-		"data": map[string]interface{}{
+		"user": map[string]interface{}{
 			"id":         user.ID,
 			"email":      user.Email,
 			"first_name": user.FirstName,
 			"last_name":  user.LastName,
+			"nickname":   user.Nickname,
+			"avatar_url": user.AvatarURL,
 		},
 	})
 }

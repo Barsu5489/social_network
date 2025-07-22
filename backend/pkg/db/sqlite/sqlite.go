@@ -32,24 +32,11 @@ func NewDB(dataSourceName string) (*sql.DB, error) {
 		log.Fatal(err)
 	}
 
-	// Force re-run migration (optional if DB is freshly deleted)
 	if err := m.Up(); err != nil && err.Error() != "no change" {
 		log.Fatalf("Migration failed: %v", err)
 	}
 
 	log.Println("Migration applied successfully")
-
-	// DEBUG: Check if 'users' table exists
-	rows, err := db.Query(`SELECT name FROM sqlite_master WHERE type='table'`)
-	if err != nil {
-		log.Fatalf("Failed to list tables: %v", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var table string
-		rows.Scan(&table)
-		log.Println("Found table:", table)
-	}
 
 	return db, nil
 }

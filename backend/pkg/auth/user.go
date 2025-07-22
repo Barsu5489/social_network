@@ -10,7 +10,6 @@ import (
 	"social-nework/pkg/models"
 	"social-nework/pkg/utils"
 
-	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,14 +17,7 @@ type UserModel struct {
 	DB *sql.DB
 }
 
-// Session store
-var store = sessions.NewCookieStore([]byte("secret"))
-
-// Session configuration
-// const (
-// 	sessionName   = "social-network-session"
-// 	sessionMaxAge = 24 * time.Hour
-// )
+// The store is now defined in sessions.go
 
 func (u *UserModel) Insert(user models.User) error {
 	passHash, err := bcrypt.GenerateFromPassword([]byte(user.PasswordHash), 12)
@@ -106,5 +98,7 @@ func (u *UserModel) Authenticate(email, password string) (*models.User, error) {
 		log.Printf("Password comparison failed: %v", err)
 		return nil, errors.New("invalid credentials")
 	}
+
+	log.Printf("DEBUG: User authenticated successfully - ID: %q, Email: %s", user.ID, user.Email)
 	return &user, nil
 }

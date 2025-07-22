@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"social-nework/pkg/models"
+	"social-nework/pkg/websocket"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -73,8 +76,52 @@ func NewComment(db *sql.DB) http.HandlerFunc {
 // GetPostComments retrieves all comments for a specific post
 func GetPostComments(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println()
+		fmt.Println("GetPostComments function being called")
 		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Try to get user ID, but don't require it for public posts
+		userID := ""
+		if uid := r.Context().Value("user_id"); uid != nil {
+			if uidStr, ok := uid.(string); ok {
+				userID = uidStr
+			}
+		}
+
+		// Get post_id from URL parameters
+		vars := mux.Vars(r)
+		postID := vars["postId"]
+		if postID == "" {
+			http.Error(w, "Post ID is required", http.StatusBadRequest)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		comments, err := models.GetPostComments(db, ctx, postID, userID)
+		if err != nil {
+			log.Printf("ERROR: Failed to get comments: %v", err)
+			http.Error(w, "Error getting comments", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"comments": comments,
+			"count":    len(comments),
+		})
+	}
+}
+
+// CreateComment creates a new comment on a post with notifications
+func CreateComment(db *sql.DB, notificationModel *models.NotificationModel, hub *websocket.Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("CreateComment function being called")
+		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -87,7 +134,7 @@ func GetPostComments(db *sql.DB) http.HandlerFunc {
 
 		// Get post_id from URL parameters
 		vars := mux.Vars(r)
-		postID := vars["post_id"]
+		postID := vars["postId"]
 		if postID == "" {
 			http.Error(w, "Post ID is required", http.StatusBadRequest)
 			return
@@ -96,17 +143,79 @@ func GetPostComments(db *sql.DB) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		comments, err := models.GetPostComments(db, ctx, postID, userID)
-		if err != nil {
-			http.Error(w, "Error getting comments", http.StatusInternalServerError)
+		var req struct {
+			Content  string  `json:"content"`
+			ImageURL *string `json:"image_url,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
+		// Validate content
+		if req.Content == "" {
+			http.Error(w, "Content is required", http.StatusBadRequest)
+			return
+		}
+
+		comment, err := models.CreateComment(db, ctx, postID, userID, req.Content, req.ImageURL)
+		if err != nil {
+			http.Error(w, "Error creating comment", http.StatusInternalServerError)
+			return
+		}
+
+		// Create notification for post owner if different from commenter
+		var postOwnerID string
+		err = db.QueryRowContext(ctx, "SELECT user_id FROM posts WHERE id = ?", postID).Scan(&postOwnerID)
+		if err == nil && postOwnerID != userID {
+			log.Printf("DEBUG: Creating comment notification - PostOwner: %s, Commenter: %s, PostID: %s", postOwnerID, userID, postID)
+			notification := models.Notification{
+				ID:          uuid.New().String(),
+				UserID:      postOwnerID,
+				Type:        "new_comment",
+				ReferenceID: postID,
+				ActorID:     &userID,    // Store who performed the action
+				IsRead:      false,
+				CreatedAt:   time.Now(),
+			}
+
+			if notificationModel != nil {
+				_, err = notificationModel.Insert(ctx, notification)
+				if err != nil {
+					log.Printf("ERROR: Failed to create comment notification: %v", err)
+				} else {
+					log.Printf("SUCCESS: Comment notification created for post owner: %s", postOwnerID)
+					
+					// Send real-time notification
+					if hub != nil {
+						log.Printf("DEBUG: Sending real-time comment notification to user: %s", postOwnerID)
+						
+						// Get commenter info
+						var commenterNickname, commenterAvatar string
+						db.QueryRowContext(ctx, "SELECT nickname, avatar_url FROM users WHERE id = ?", userID).Scan(&commenterNickname, &commenterAvatar)
+						
+						hub.SendNotification(postOwnerID, notification, map[string]interface{}{
+							"post_id":        postID,
+							"comment_id":     comment.ID,
+							"commenter_id":   userID,
+							"actor_nickname": commenterNickname,
+							"actor_avatar":   commenterAvatar,
+						})
+					}
+				}
+			}
+		} else if err != nil {
+			log.Printf("ERROR: Failed to get post owner for comment notification: %v", err)
+		} else {
+			log.Printf("DEBUG: Not creating comment notification - self-comment detected")
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"comments": comments,
-			"count":    len(comments),
+			"message": "Comment created successfully",
+			"comment": comment,
 		})
 	}
 }

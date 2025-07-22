@@ -40,16 +40,25 @@ export function CommentSection({ postId }: CommentSectionProps) {
         const fetchComments = async () => {
             setIsLoading(true);
             try {
+                console.log('DEBUG: Fetching comments for post:', postId);
                 const response = await fetch(`${API_BASE_URL}/comments/${postId}`, {
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
                 });
+                console.log('DEBUG: Comments fetch response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('DEBUG: Comments data received:', data);
                     setComments(data.comments || []);
                 } else {
+                    console.error('ERROR: Failed to load comments, status:', response.status);
                     toast({ variant: 'destructive', title: 'Failed to load comments.' });
                 }
             } catch (error) {
+                console.error('ERROR: Network error loading comments:', error);
                 toast({ variant: 'destructive', title: 'Network error loading comments.' });
             } finally {
                 setIsLoading(false);

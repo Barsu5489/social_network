@@ -153,3 +153,33 @@ func (m *FollowModel) GetFollowing(ctx context.Context, userID string) ([]User, 
 
 	return following, nil
 }
+
+// CheckFollowStatus checks if a user is following another user and vice versa
+func (m *FollowModel) CheckFollowStatus(ctx context.Context, followerID, followedID string) (bool, bool, error) {
+	var isFollowing bool
+	var isFollowedBy bool
+	
+	// Check if current user is following target user
+	err := m.DB.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM follows
+			WHERE follower_id = ? AND followed_id = ? AND status = 'accepted' AND deleted_at IS NULL
+		)`, followerID, followedID).Scan(&isFollowing)
+	
+	if err != nil {
+		return false, false, err
+	}
+	
+	// Check if target user is following current user
+	err = m.DB.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM follows
+			WHERE follower_id = ? AND followed_id = ? AND status = 'accepted' AND deleted_at IS NULL
+		)`, followedID, followerID).Scan(&isFollowedBy)
+	
+	if err != nil {
+		return false, false, err
+	}
+	
+	return isFollowing, isFollowedBy, nil
+}

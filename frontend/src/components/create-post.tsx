@@ -22,7 +22,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { useUser } from '@/contexts/user-context';
-
+import { FollowerSelector } from './follower-selector';
 
 type Privacy = 'public' | 'almost_private' | 'private';
 
@@ -33,23 +33,47 @@ export function CreatePost({ groupId }: { groupId?: string }) {
   const [content, setContent] = useState('');
   const [privacy, setPrivacy] = useState<Privacy>('public');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [allowedUsers, setAllowedUsers] = useState<string[]>([]);
+  const [showFollowerSelector, setShowFollowerSelector] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
 
   const handlePost = async () => {
-    if (!content.trim()) {
+    if (!content.trim() && !selectedImage) {
       return;
     }
 
     setIsSubmitting(true);
     
-    // Determine the URL and body based on whether it's a group post
-    const isGroupPost = !!groupId;
-    const url = isGroupPost ? `${API_BASE_URL}/api/groups/${groupId}/posts` : `${API_BASE_URL}/post`;
-    const body = isGroupPost ? JSON.stringify({ content }) : JSON.stringify({ content, privacy });
-
     try {
+      let imageUrl = null;
+      
+      // Upload image if selected
+      if (selectedImage) {
+        const formData = new FormData();
+        formData.append('image', selectedImage);
+        
+        const uploadResponse = await fetch(`${API_BASE_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          imageUrl = uploadData.url;
+        }
+      }
+
+      const isGroupPost = !!groupId;
+      const url = isGroupPost ? `${API_BASE_URL}/api/groups/${groupId}/posts` : `${API_BASE_URL}/api/posts`;
+      const body = isGroupPost 
+        ? JSON.stringify({ content, image_url: imageUrl }) 
+        : JSON.stringify({ content, privacy, image_url: imageUrl, allowed_user_ids: allowedUsers });
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -66,14 +90,11 @@ export function CreatePost({ groupId }: { groupId?: string }) {
         });
         setContent('');
         setPrivacy('public');
-        router.refresh(); // Refresh the page to show the new post
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred.' }));
-        toast({
-          variant: "destructive",
-          title: "Failed to create post",
-          description: errorData.error || errorData.message || 'Please try again.',
-        });
+        setSelectedImage(null);
+        setImagePreview(null);
+        setAllowedUsers([]);
+        setShowFollowerSelector(false);
+        router.refresh();
       }
     } catch (error) {
       toast({
@@ -94,6 +115,31 @@ export function CreatePost({ groupId }: { groupId?: string }) {
 
   const CurrentPrivacyIcon = privacyOptions[privacy].icon;
 
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
+
+  const handlePrivacyChange = (newPrivacy: Privacy) => {
+    setPrivacy(newPrivacy);
+    if (newPrivacy === 'private') {
+      setShowFollowerSelector(true);
+    } else {
+      setShowFollowerSelector(false);
+      setAllowedUsers([]);
+    }
+  };
+
   return (
     <Card>
       <CardContent className="p-4">
@@ -112,33 +158,43 @@ export function CreatePost({ groupId }: { groupId?: string }) {
             />
             <div className="mt-2 flex items-center justify-between">
               <div className="flex gap-1 text-muted-foreground">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" disabled>
+                <input
+                  type="file"
+                  accept="image/*,video/*,.gif"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="image-upload">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" type="button">
                     <ImageIcon className="h-5 w-5" />
-                </Button>
+                  </Button>
+                </label>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" disabled>
-                    <Video className="h-5 w-5" />
+                  <Video className="h-5 w-5" />
                 </Button>
                 <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                            <Smile className="h-5 w-5" />
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                      <Smile className="h-5 w-5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2">
+                    <div className="grid grid-cols-5 gap-1">
+                      {emojis.map((emoji) => (
+                        <Button
+                          key={emoji}
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setContent(content + emoji)}
+                          className="text-xl"
+                        >
+                          {emoji}
                         </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2">
-                        <div className="grid grid-cols-5 gap-1">
-                            {emojis.map((emoji) => (
-                                <Button
-                                    key={emoji}
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setContent(content + emoji)}
-                                    className="text-xl"
-                                >
-                                    {emoji}
-                                </Button>
-                            ))}
-                        </div>
-                    </PopoverContent>
+                      ))}
+                    </div>
+                  </PopoverContent>
                 </Popover>
               </div>
               <div className="flex items-center gap-2">
@@ -159,7 +215,7 @@ export function CreatePost({ groupId }: { groupId?: string }) {
                               <Users className="h-4 w-4 mr-2"/>
                               Followers
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setPrivacy('private')} disabled>
+                          <DropdownMenuItem onClick={() => handlePrivacyChange('private')}>
                               <Lock className="h-4 w-4 mr-2"/>
                               Specific followers
                           </DropdownMenuItem>
@@ -172,6 +228,25 @@ export function CreatePost({ groupId }: { groupId?: string }) {
                 </Button>
               </div>
             </div>
+            {imagePreview && (
+              <div className="mt-2 relative">
+                <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg" />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2"
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+            {showFollowerSelector && (
+              <FollowerSelector
+                selectedUsers={allowedUsers}
+                onSelectionChange={setAllowedUsers}
+              />
+            )}
           </div>
         </div>
       </CardContent>

@@ -42,13 +42,28 @@ export function Sidebar() {
     const { user, setUser, isLoading } = useUser();
 
     const handleLogout = async () => {
-        await fetch(`${API_BASE_URL}/api/logout`, {
-            method: 'POST',
-            credentials: 'include',
-        });
-        
-        setUser(null); // Clear user from context and localStorage
-        router.push('/');
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/logout`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            
+            if (!response.ok) {
+                console.error('Logout failed:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            // Always clear user data regardless of API response
+            setUser(null); // Clear user from context and localStorage
+            
+            // Clear any remaining session data
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Force redirect to login page
+            window.location.href = '/';
+        }
     };
 
     if (isLoading) {
@@ -108,7 +123,7 @@ export function Sidebar() {
                                 <Settings className="mr-2 h-4 w-4" />
                                 <span>Settings</span>
                             </DropdownMenuItem>
-                             <DropdownMenuSub>
+                            <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                     <Palette className="mr-2 h-4 w-4" />
                                     <span>Theme</span>
@@ -122,7 +137,7 @@ export function Sidebar() {
                                 </DropdownMenuPortal>
                             </DropdownMenuSub>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleLogout}>
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
                                 <LogOut className="mr-2 h-4 w-4" />
                                 <span>Log out</span>
                             </DropdownMenuItem>

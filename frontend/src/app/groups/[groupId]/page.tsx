@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { API_BASE_URL } from "@/lib/config";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { PostCard } from "@/components/post-card";
 import { CreatePost } from "@/components/create-post";
 import type { Post, Group, Event } from "@/types";
@@ -17,24 +17,89 @@ import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { InviteUserDialog } from "@/components/invite-user-dialog";
+import { JoinGroupButton } from "@/components/join-group-button";
 
 // Placeholder for the requests tab content
+type GroupRequest = {
+    id: string;
+    user_name: string;
+    members?: { id: string }[]; 
+    // add other fields if needed
+};
+
 function GroupRequestsTab({ groupId }: { groupId: string }) {
-    // In a real application, you would fetch pending requests here.
-    // const [requests, setRequests] = useState([]);
-    // const [isLoading, setIsLoading] = useState(true);
-    // useEffect(() => {
-    //   fetch(`${API_BASE_URL}/api/groups/${groupId}/requests`) ...
-    // }, [groupId]);
+    const [requests, setRequests] = useState<GroupRequest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchRequests = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/groups/${groupId}/requests`, {
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setRequests(data);
+                }
+            } catch (error) {
+                console.error('Error fetching requests:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchRequests();
+    }, [groupId]);
+
+    const handleRequest = async (requestId: string, action: 'accept' | 'reject') => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/groups/requests/${requestId}/${action}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setRequests(prev => prev.filter(req => req.id !== requestId));
+                toast({ title: `Request ${action}ed successfully` });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: `Failed to ${action} request` });
+        }
+    };
+
+    if (isLoading) return <Skeleton className="h-32 w-full" />;
 
     return (
-        <Alert>
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Under Construction!</AlertTitle>
-            <AlertDescription>
-                The ability to manage join requests is coming soon. A backend endpoint to fetch pending requests is needed to complete this feature.
-            </AlertDescription>
-        </Alert>
+        <div className="space-y-4">
+            {requests.length > 0 ? (
+                requests.map((request) => (
+                    <Card key={request.id}>
+                        <CardContent className="flex items-center justify-between p-4">
+                            <div>
+                                <p className="font-medium">{request.user_name}</p>
+                                <p className="text-sm text-muted-foreground">Wants to join the group</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleRequest(request.id, 'accept')}>
+                                    Accept
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleRequest(request.id, 'reject')}>
+                                    Reject
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))
+            ) : (
+                <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                        <p>No pending requests.</p>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 
@@ -46,6 +111,7 @@ export default function SingleGroupPage() {
     const [groupData, setGroupData] = useState<{ posts: Post[], events: Event[], groupDetails: Group | null }>({ posts: [], events: [], groupDetails: null });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isMember, setIsMember] = useState<boolean>(false);
 
     useEffect(() => {
         if (!groupId || !user) return;
@@ -82,6 +148,26 @@ export default function SingleGroupPage() {
         getGroupData();
     }, [groupId, user]);
 
+    useEffect(() => {
+        if (!groupId || !user) return;
+
+        const checkMembership = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/groups/${groupId}/members`, {
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const members = await res.json();
+                    setIsMember(members.some((member: any) => member.user_id === user.id));
+                }
+            } catch (error) {
+                console.error('Error checking membership:', error);
+            }
+        };
+
+        checkMembership();
+    }, [groupId, user]);
+
     if (isLoading) {
         return (
             <main className="flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
@@ -115,7 +201,11 @@ export default function SingleGroupPage() {
 
     const { posts, events, groupDetails } = groupData;
     const cover = getGroupCover(groupId);
-    const isCreator = user?.id === groupDetails.creator_id;
+    // If your Group type has a members array, use something like:
+    // const isMember = groupDetails.members?.some((member: { id: string }) => member.id === user?.id);
+
+    // If not, and only the creator is a member, keep the original logic:
+    // const isMember = user?.id === groupDetails.creator_id;
 
     return (
         <main className="flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
@@ -133,6 +223,13 @@ export default function SingleGroupPage() {
                     <CardTitle className="text-3xl">{groupDetails.name}</CardTitle>
                     <CardDescription>{groupDetails.description}</CardDescription>
                 </CardHeader>
+                <CardFooter className="!flex justify-between">
+                    {isMember ? (
+                        <InviteUserDialog groupId={groupDetails.id} />
+                    ) : (
+                        <JoinGroupButton groupId={groupDetails.id} isPrivate={groupDetails.is_private} />
+                    )}
+                </CardFooter>
             </Card>
 
             <Tabs defaultValue="posts">
@@ -140,7 +237,7 @@ export default function SingleGroupPage() {
                     <TabsList>
                         <TabsTrigger value="posts">Posts</TabsTrigger>
                         <TabsTrigger value="events">Events</TabsTrigger>
-                        {isCreator && <TabsTrigger value="requests">Requests</TabsTrigger>}
+                        {isMember && <TabsTrigger value="requests">Requests</TabsTrigger>}
                     </TabsList>
                     <CreateEventDialog groupId={groupId} />
                 </div>
@@ -179,7 +276,7 @@ export default function SingleGroupPage() {
                     </div>
                 </TabsContent>
 
-                {isCreator && (
+                {isMember && (
                     <TabsContent value="requests">
                        <GroupRequestsTab groupId={groupId} />
                     </TabsContent>

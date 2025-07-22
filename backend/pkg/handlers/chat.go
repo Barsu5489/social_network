@@ -18,18 +18,20 @@ import (
 )
 
 type ChatHandler struct {
-	chatRepo    *repository.ChatRepository
-	messageRepo *repository.MessageRepository
-	groupRepo   *repository.GroupRepository // Add this for group chat integration
-	hub         *websocket.Hub
+	chatRepo         *repository.ChatRepository
+	messageRepo      *repository.MessageRepository
+	groupRepo        *repository.GroupRepository
+	notificationRepo *models.NotificationModel
+	hub              *websocket.Hub
 }
 
-func NewChatHandler(chatRepo *repository.ChatRepository, messageRepo *repository.MessageRepository, groupRepo *repository.GroupRepository, hub *websocket.Hub) *ChatHandler {
+func NewChatHandler(chatRepo *repository.ChatRepository, messageRepo *repository.MessageRepository, groupRepo *repository.GroupRepository, hub *websocket.Hub, notificationRepo *models.NotificationModel) *ChatHandler {
 	return &ChatHandler{
-		chatRepo:    chatRepo,
-		messageRepo: messageRepo,
-		groupRepo:   groupRepo,
-		hub:         hub,
+		chatRepo:         chatRepo,
+		messageRepo:      messageRepo,
+		groupRepo:        groupRepo,
+		notificationRepo: notificationRepo,
+		hub:              hub,
 	}
 }
 
@@ -39,7 +41,10 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatID := vars["chatId"]
 
+	log.Printf("SendMessage: userID=%s, chatID=%s", userID, chatID)
+
 	if chatID == "" {
+		log.Printf("SendMessage: Chat ID is required")
 		http.Error(w, "Chat ID is required", http.StatusBadRequest)
 		return
 	}
@@ -50,11 +55,15 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("SendMessage: Invalid request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("SendMessage: content=%s, type=%s", req.Content, req.Type)
+
 	if req.Content == "" {
+		log.Printf("SendMessage: Message content is required")
 		http.Error(w, "Message content is required", http.StatusBadRequest)
 		return
 	}
@@ -62,15 +71,57 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	// Verify user is in chat
 	isInChat, err := h.chatRepo.IsUserInChat(chatID, userID)
 	if err != nil {
-		log.Printf("Error checking chat membership: %v", err)
+		log.Printf("SendMessage: Error checking chat membership: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	if !isInChat {
+		log.Printf("SendMessage: User %s not in chat %s", userID, chatID)
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}
+
+	// For direct chats, verify follow relationship still exists
+	chatType, err := h.chatRepo.GetChatType(chatID)
+	if err != nil {
+		log.Printf("SendMessage: Error getting chat type: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if chatType == "direct" {
+		participants, err := h.chatRepo.GetChatParticipants(chatID)
+		if err != nil {
+			log.Printf("SendMessage: Error getting chat participants: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		var recipientID string
+		for _, participantID := range participants {
+			if participantID != userID {
+				recipientID = participantID
+				break
+			}
+		}
+
+		if recipientID != "" {
+			canChat, err := h.chatRepo.CanUsersChat(userID, recipientID)
+			if err != nil {
+				log.Printf("SendMessage: Error checking chat permissions: %v", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			if !canChat {
+				http.Error(w, "Cannot send message: follow relationship required", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	log.Printf("SendMessage: User verified in chat, creating message")
 
 	// Create message
 	message := &models.Message{
@@ -81,28 +132,76 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		SentAt:   time.Now().Unix(),
 	}
 
+	log.Printf("SendMessage: Created message with ID=%s", message.ID)
+
 	// Save message to database
 	if err := h.messageRepo.SaveMessage(message); err != nil {
-		log.Printf("Error saving message: %v", err)
+		log.Printf("SendMessage: Error saving message: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Get sender info for websocket broadcast
+	// Get sender info first for notifications
 	var sender models.User
 	err = h.chatRepo.DB.QueryRow(`
-		SELECT first_name, last_name, avatar_url 
+		SELECT first_name, last_name, avatar_url
 		FROM users WHERE id = ?`, userID).Scan(
 		&sender.FirstName, &sender.LastName, &sender.AvatarURL)
 	if err != nil {
-		log.Printf("Error getting sender info: %v", err)
+		log.Printf("SendMessage: Error getting sender info: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
+
+	// Create notifications for other participants
+	participants, err := h.chatRepo.GetChatParticipants(chatID)
+	if err != nil {
+		log.Printf("SendMessage: Error getting participants for notifications: %v", err)
+	} else {
+		for _, participantID := range participants {
+			if participantID != userID {
+				log.Printf("SendMessage: Creating notification for participant: %s", participantID)
+				
+				notification := models.Notification{
+					ID:          uuid.New().String(),
+					UserID:      participantID,
+					Type:        "new_message",
+					ReferenceID: chatID,
+					IsRead:      false,
+					CreatedAt:   time.Now(),
+				}
+				
+				// Save notification to database
+				if h.notificationRepo != nil {
+					_, err := h.notificationRepo.Insert(r.Context(), notification)
+					if err != nil {
+						log.Printf("SendMessage: Error saving notification: %v", err)
+					} else {
+						log.Printf("SendMessage: Notification saved for user: %s", participantID)
+						
+						// Send real-time notification
+						h.hub.SendNotification(participantID, notification, map[string]interface{}{
+							"chat_id":        chatID,
+							"sender_id":      userID,
+							"message_id":     message.ID,
+							"actor_nickname": sender.FirstName + " " + sender.LastName,
+							"actor_avatar":   sender.AvatarURL,
+						})
+					}
+				}
+			}
+		}
+	}
+
 	message.Sender = sender
+
+	log.Printf("SendMessage: Retrieved sender info: %+v", sender)
 
 	// Broadcast message via websocket
 	wsMessage := websocket.MessagePayload{
-		Type:   "new_message",
-		ChatID: chatID,
+		Type:     "new_message",
+		ChatID:   chatID,
+		SenderID: userID,
 		Data: map[string]interface{}{
 			"id":        message.ID,
 			"chat_id":   message.ChatID,
@@ -117,11 +216,12 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	log.Printf("SendMessage: Broadcasting WebSocket message to chat %s", chatID)
 	h.hub.BroadcastToChatRoom(chatID, wsMessage, userID)
 
 	// Return the saved message
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	responseData := map[string]interface{}{
 		"message": map[string]interface{}{
 			"id":        message.ID,
 			"chat_id":   message.ChatID,
@@ -135,7 +235,10 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		"success": true,
-	})
+	}
+	
+	log.Printf("SendMessage: Returning response: %+v", responseData)
+	json.NewEncoder(w).Encode(responseData)
 }
 
 // CreateDirectChat creates a direct chat between two users
@@ -158,6 +261,19 @@ func (h *ChatHandler) CreateDirectChat(w http.ResponseWriter, r *http.Request) {
 
 	if req.RecipientID == userID {
 		http.Error(w, "Cannot create chat with yourself", http.StatusBadRequest)
+		return
+	}
+
+	// Check if users can chat (follow relationship required)
+	canChat, err := h.chatRepo.CanUsersChat(userID, req.RecipientID)
+	if err != nil {
+		log.Printf("Error checking chat permissions: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !canChat {
+		http.Error(w, "Cannot create chat: users must follow each other or recipient must have public profile", http.StatusForbidden)
 		return
 	}
 
@@ -248,45 +364,53 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
 
 	// Get direct chats
+	log.Printf("GetUserChats: starting for user %s", userID)
 	directChats, err := h.chatRepo.GetUserChats(userID)
 	if err != nil {
-		log.Printf("Error getting user chats: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		log.Printf("GetUserChats: Error getting user chats: %v", err)
+		http.Error(w, "Internal server error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("GetUserChats: retrieved direct chats: %v", directChats)
 
 	var enhancedChats []map[string]interface{}
 
 	// Process direct chats
 	for _, chat := range directChats {
 		if chat.Type == "direct" {
-			participants, err := h.chatRepo.GetChatParticipants(chat.ID)
-			if err != nil {
-				log.Printf("Error getting chat participants: %v", err)
-				continue
-			}
+			log.Printf("GetUserChats: processing direct chat: %v", chat)
 
 			// Get participant details (excluding current user for display name)
 			var otherParticipant models.User
+			participants, err := h.chatRepo.GetChatParticipants(chat.ID)
+			if err != nil {
+				log.Printf("GetUserChats: Error getting chat participants: %v", err)
+				continue
+			}
+			log.Printf("GetUserChats: retrieved chat participants: %v", participants)
+
 			for _, participantID := range participants {
 				if participantID != userID {
 					err = h.chatRepo.DB.QueryRow(`
-						SELECT first_name, last_name, avatar_url 
+						SELECT first_name, last_name, avatar_url
 						FROM users WHERE id = ?`, participantID).Scan(
 						&otherParticipant.FirstName, &otherParticipant.LastName, &otherParticipant.AvatarURL)
 					if err != nil {
-						log.Printf("Error getting participant info: %v", err)
+						log.Printf("GetUserChats: Error getting participant info: %v", err)
 					}
 					break
 				}
 			}
+			log.Printf("GetUserChats: retrieved participant info: %v", otherParticipant)
 
 			// Get last message
-			messages, err := h.messageRepo.GetChatMessages(chat.ID, time.Time{}, 1)
 			var lastMessage *models.Message
+			messages, err := h.messageRepo.GetChatMessages(chat.ID, time.Time{}, 1)
 			if err == nil && len(messages) > 0 {
 				lastMessage = &messages[0]
 			}
+			log.Printf("GetUserChats: retrieved last message: %v", lastMessage)
 
 			enhancedChat := map[string]interface{}{
 				"id":           chat.ID,
@@ -317,29 +441,35 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		JOIN group_chats gc ON c.id = gc.chat_id
 		JOIN groups g ON gc.group_id = g.id
 		JOIN group_members gm ON g.id = gm.group_id
-		WHERE gm.user_id = ? AND c.type = 'group' 
+		WHERE gm.user_id = ? AND c.type = 'group'
 		AND c.deleted_at IS NULL AND gm.deleted_at IS NULL
 		ORDER BY c.created_at DESC`, userID)
 	if err != nil {
-		log.Printf("Error getting group chats: %v", err)
+		log.Printf("GetUserChats: Error getting group chats: %v", err)
+		http.Error(w, "Internal server error: "+err.Error(), http.StatusInternalServerError)
 	} else {
+		log.Printf("GetUserChats: retrieved group chats")
 		defer rows.Close()
 
 		for rows.Next() {
 			var chatID, chatType, groupID, groupName, groupDescription string
-			var createdAt time.Time
+			var createdAtUnix int64
 
-			if err := rows.Scan(&chatID, &chatType, &createdAt, &groupID, &groupName, &groupDescription); err != nil {
-				log.Printf("Error scanning group chat: %v", err)
+			if err := rows.Scan(&chatID, &chatType, &createdAtUnix, &groupID, &groupName, &groupDescription); err != nil {
+				log.Printf("GetUserChats: Error scanning group chat: %v", err)
 				continue
 			}
+
+			createdAt := time.Unix(createdAtUnix, 0)
+			log.Printf("GetUserChats: scanned group chat: %s, %s, %v, %s, %s, %s", chatID, chatType, createdAt, groupID, groupName, groupDescription)
 
 			// Get participants
 			participants, err := h.chatRepo.GetChatParticipants(chatID)
 			if err != nil {
-				log.Printf("Error getting chat participants: %v", err)
+				log.Printf("GetUserChats: Error getting chat participants: %v", err)
 				continue
 			}
+			log.Printf("GetUserChats: retrieved chat participants: %v", participants)
 
 			// Get last message
 			messages, err := h.messageRepo.GetChatMessages(chatID, time.Time{}, 1)
@@ -347,6 +477,7 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 			if err == nil && len(messages) > 0 {
 				lastMessage = &messages[0]
 			}
+			log.Printf("GetUserChats: retrieved last message: %v", lastMessage)
 
 			groupChat := map[string]interface{}{
 				"id":          chatID,
@@ -380,7 +511,6 @@ func (h *ChatHandler) GetUserChats(w http.ResponseWriter, r *http.Request) {
 		"chats": enhancedChats,
 	})
 }
-
 // AddParticipant adds a user to a group chat
 func (h *ChatHandler) AddParticipant(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(string)
@@ -556,7 +686,7 @@ func (h *ChatHandler) GetGroupChatForGroup(w http.ResponseWriter, r *http.Reques
 		"participants": participants,
 		"type":         "group",
 	})
-}
+ 	}
 
 // RegisterChatRoutes registers all chat-related routes
 func RegisterChatRoutes(router *mux.Router, handler *ChatHandler) {

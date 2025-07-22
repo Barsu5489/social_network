@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"social-nework/pkg/models"
@@ -103,11 +104,23 @@ func (r *MessageRepository) CreateDirectChat(user1, user2 string) (string, error
 	defer tx.Rollback()
 
 	chatID = uuid.New().String()
+	now := time.Now().Unix() // Use Unix timestamp, not time.Time
+	
+	log.Printf("CreateDirectChat: Creating chat %s with Unix timestamp: %d", chatID, now)
 
 	_, err = tx.Exec(`
 		INSERT INTO chats (id, type, created_at)
 		VALUES (?, 'direct', ?)`,
-		chatID, time.Now())
+		chatID, now) // Use Unix timestamp
+	if err != nil {
+		log.Printf("CreateDirectChat: Insert error: %v", err)
+		return "", err
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
+		VALUES (?, ?, ?, ?)`,
+		uuid.New().String(), chatID, user1, now)
 	if err != nil {
 		return "", err
 	}
@@ -115,15 +128,7 @@ func (r *MessageRepository) CreateDirectChat(user1, user2 string) (string, error
 	_, err = tx.Exec(`
 		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
 		VALUES (?, ?, ?, ?)`,
-		uuid.New().String(), chatID, user1, time.Now())
-	if err != nil {
-		return "", err
-	}
-
-	_, err = tx.Exec(`
-		INSERT INTO chat_participants (id, chat_id, user_id, joined_at)
-		VALUES (?, ?, ?, ?)`,
-		uuid.New().String(), chatID, user2, time.Now())
+		uuid.New().String(), chatID, user2, now)
 	if err != nil {
 		return "", err
 	}
