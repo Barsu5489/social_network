@@ -1,15 +1,14 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: ./backend
     container_name: social-backend
-    ports:
-      - "8080:3000"  # Map host 8080 to container 3000
+    volumes:
+      - backend-data:/root/data
     environment:
       - GOMAXPROCS=1
       - GOMEMLIMIT=128MiB
+      - DB_PATH=/root/data/social_network.db
     deploy:
       resources:
         limits:
@@ -27,6 +26,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:3000
     deploy:
       resources:
         limits:
@@ -41,3 +41,6 @@ services:
 networks:
   social-network-net:
     driver: bridge
+
+volumes:
+  backend-data:
